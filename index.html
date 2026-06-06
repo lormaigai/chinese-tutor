@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-SG">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Daily Higher Chinese immersion prototype for Singapore-Cambridge O-Level 1116 students."
+    />
+    <meta name="theme-color" content="#f6d46b" />
+    <title>Chinese Tutor Daily Immersion</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./daily-immersion.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css?v=2" />
+  </head>
+  <body>
+    <svg aria-hidden="true" class="icon-defs">
+      <symbol id="icon-news" viewBox="0 0 24 24">
+        <path d="M4 5.5h12a2 2 0 0 1 2 2v11H6a2 2 0 0 1-2-2v-11Z"></path>
+        <path d="M18 9h2v7.5a2 2 0 0 1-2 2"></path>
+        <path d="M7 9h7"></path>
+        <path d="M7 12h7"></path>
+        <path d="M7 15h4"></path>
+      </symbol>
+      <symbol id="icon-review" viewBox="0 0 24 24">
+        <path d="M12 5v4l3 1.5"></path>
+        <path d="M20 12a8 8 0 1 1-2.35-5.66"></path>
+        <path d="M20 5v5h-5"></path>
+      </symbol>
+      <symbol id="icon-bookmark" viewBox="0 0 24 24">
+        <path d="M7 4.5h10a1 1 0 0 1 1 1v14l-6-3.5-6 3.5v-14a1 1 0 0 1 1-1Z"></path>
+      </symbol>
+      <symbol id="icon-mic" viewBox="0 0 24 24">
+        <rect x="9" y="4" width="6" height="11" rx="3"></rect>
+        <path d="M5 11a7 7 0 0 0 14 0"></path>
+        <path d="M12 18v3"></path>
+      </symbol>
+      <symbol id="icon-user" viewBox="0 0 24 24">
+        <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+        <path d="M4.5 20a7.5 7.5 0 0 1 15 0"></path>
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14"></path>
+        <path d="M5 12h14"></path>
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path d="m5 12 4 4 10-10"></path>
+      </symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24">
+        <path d="M5 7h14"></path>
+        <path d="M9 7V5h6v2"></path>
+        <path d="M8 7v12h8V7"></path>
+      </symbol>
+    </svg>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">高级华文 1116</p>
+          <h1 id="screenTitle">今日沉浸</h1>
+        </div>
+        <button class="icon-button" id="installButton" type="button" hidden aria-label="Install app">
+          <svg><use href="#icon-plus"></use></svg>
+        </button>
+      </header>
+
+      <main id="view" class="view" tabindex="-1"></main>
+
+      <nav class="bottom-nav" aria-label="Primary navigation">
+        <button class="nav-item active" type="button" data-nav="today">
+          <svg><use href="#icon-news"></use></svg>
+          <span>Today</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="review">
+          <svg><use href="#icon-review"></use></svg>
+          <span>Review</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="saved">
+          <svg><use href="#icon-bookmark"></use></svg>
+          <span>Saved</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="oral">
+          <svg><use href="#icon-mic"></use></svg>
+          <span>Oral</span>
+        </button>
+        <button class="nav-item" type="button" data-nav="profile">
+          <svg><use href="#icon-user"></use></svg>
+          <span>Profile</span>
+        </button>
+      </nav>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="./app.js?v=2"></script>
+  </body>
+</html>

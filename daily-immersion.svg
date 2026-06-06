@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" role="img" aria-labelledby="title desc">
+  <title id="title">Chinese daily immersion lesson</title>
+  <desc id="desc">A mobile Chinese news lesson with vocabulary cards and oral practice notes.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e7f4f1"/>
+      <stop offset=".55" stop-color="#fff7df"/>
+      <stop offset="1" stop-color="#fff0ea"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f5f7fb"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="560" fill="url(#bg)"/>
+  <path d="M0 454c86-44 174-64 264-60 124 6 193 58 315 60 144 2 234-68 381-52v158H0Z" fill="#0f766e" opacity=".14"/>
+  <path d="M80 102h210c18 0 32 14 32 32v292c0 18-14 32-32 32H80c-18 0-32-14-32-32V134c0-18 14-32 32-32Z" fill="#ffffff" opacity=".86"/>
+  <path d="M90 156h160" stroke="#0f3d3e" stroke-width="18" stroke-linecap="round"/>
+  <path d="M90 208h184M90 244h146M90 280h174" stroke="#5c6675" stroke-width="12" stroke-linecap="round" opacity=".7"/>
+  <path d="M100 342h76M196 342h76" stroke="#d94f32" stroke-width="34" stroke-linecap="round" opacity=".85"/>
+  <rect x="384" y="54" width="286" height="452" rx="34" fill="#15202b"/>
+  <rect x="404" y="82" width="246" height="396" rx="24" fill="url(#screen)"/>
+  <circle cx="527" cy="462" r="8" fill="#dce3ea"/>
+  <rect x="430" y="116" width="112" height="24" rx="7" fill="#0f766e"/>
+  <rect x="430" y="158" width="186" height="18" rx="6" fill="#15202b"/>
+  <rect x="430" y="190" width="166" height="12" rx="6" fill="#5c6675" opacity=".55"/>
+  <rect x="430" y="224" width="190" height="72" rx="8" fill="#e7f4f1" stroke="#b7dad3"/>
+  <path d="M448 248h132M448 270h102" stroke="#0f3d3e" stroke-width="10" stroke-linecap="round"/>
+  <rect x="430" y="318" width="86" height="74" rx="8" fill="#fff7df" stroke="#efd086"/>
+  <rect x="534" y="318" width="86" height="74" rx="8" fill="#fff0ea" stroke="#f1baa8"/>
+  <path d="M450 344h42M450 366h30M554 344h42M554 366h30" stroke="#15202b" stroke-width="9" stroke-linecap="round" opacity=".68"/>
+  <path d="M710 138c44 8 80 42 94 88 17 55-1 118-45 158" fill="none" stroke="#d94f32" stroke-width="18" stroke-linecap="round"/>
+  <path d="M752 246h94M799 199v94" stroke="#d94f32" stroke-width="16" stroke-linecap="round"/>
+  <path d="M712 390h142" stroke="#0f3d3e" stroke-width="18" stroke-linecap="round"/>
+  <path d="M720 426h96" stroke="#5c6675" stroke-width="12" stroke-linecap="round" opacity=".7"/>
+  <text x="710" y="114" fill="#0f3d3e" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="54" font-weight="700">每日</text>
+  <text x="710" y="470" fill="#15202b" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="36" font-weight="700">词汇 · 口试 · 时事</text>
+</svg>

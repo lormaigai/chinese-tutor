@@ -1,0 +1,18 @@
+{
+  "name": "Chinese Tutor Daily Immersion",
+  "short_name": "Chinese Tutor",
+  "description": "Daily Higher Chinese immersion prototype for Singapore-Cambridge O-Level 1116 students.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fbf4e3",
+  "theme_color": "#f6d46b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./daily-immersion.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
