@@ -1,6 +1,7 @@
 # Chinese Tutor Daily Immersion App
-
 Mobile-first PWA prototype for Singapore-Cambridge GCE O-Level Higher Chinese 1116 students.
+try it live: https://lormaigai.github.io/chinese-tutor/ 
+Do let me know your suggestions + feedback! 
 
 ## What is implemented
 
