@@ -369,23 +369,18 @@ h3 {
   margin-bottom: 12px;
   font-family: var(--font-serif);
   font-size: 1.06rem;
-  line-height: 1.9;
+  line-height: 2.08;
 }
 
 .passage p:last-child {
   margin-bottom: 0;
 }
 
-.pinyin-line,
 .english-hint {
   margin: -4px 0 12px;
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.62;
-}
-
-.pinyin-line {
-  font-family: var(--font-ui);
 }
 
 .english-hint {
@@ -400,6 +395,27 @@ h3 {
   background: #ffef9f;
   color: #4b3512;
   font-weight: 760;
+}
+
+.pinyin-term {
+  display: inline;
+  padding: 0 4px 3px;
+  line-height: 2.3;
+}
+
+.pinyin-term ruby {
+  ruby-align: center;
+  ruby-position: under;
+  margin-inline: 1px;
+}
+
+.pinyin-term rt {
+  color: var(--tea);
+  font-family: var(--font-ui);
+  font-size: 0.56em;
+  font-weight: 780;
+  line-height: 1;
+  user-select: none;
 }
 
 .grid,

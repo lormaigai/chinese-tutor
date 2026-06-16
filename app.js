@@ -688,6 +688,183 @@ const articles = [
       ],
     ),
   },
+  {
+    id: "zaobao-water-resilience",
+    topicId: "environment",
+    topicLabel: "环境",
+    title: "节水创新：为什么每一滴水都关系到新加坡的韧性？",
+    sourceName: "联合早报",
+    sourceTitle: "政府拨近1亿元 推动水资源优化与工业节水创新",
+    sourceUrl: "https://www.zaobao.com.sg/realtime/singapore/story20260616-7049020",
+    sourceDate: "2026-06-16",
+    sourceSnippet:
+      "联合早报报道政府投入资金推动水资源优化与工业节水创新。本文改写成适合中学生的原创练习，讨论水资源、工业责任和个人节水习惯。",
+    readingTime: "8 min",
+    tags: ["水资源", "工业节水", "绿色发展", "国家韧性"],
+    paragraphs: [
+      {
+        zh:
+          "新加坡没有辽阔的天然水源，因此水资源从来不是理所当然的东西。面对气候变化、人口增长和工业需求，政府推动水资源优化，不只是为了节省开支，更是为了加强国家韧性。所谓韧性，就是在外部环境不稳定时，社会仍然能够保持基本运作。水看似平凡，却关系到家庭生活、工厂生产和公共卫生。",
+        en:
+          "Water security can be linked to climate change, industry, and national resilience.",
+      },
+      {
+        zh:
+          "工业节水尤其重要，因为一些行业在生产过程中需要大量用水。如果企业能通过科技循环利用废水，或改进生产流程，就能减少浪费，也能降低长期成本。这样的节水创新说明，环保并不一定和经济发展互相冲突；只要方法得当，企业既能提高效率，也能承担社会责任。",
+        en:
+          "This paragraph gives a balanced point: sustainability and economic efficiency can support each other.",
+      },
+      {
+        zh:
+          "对学生来说，节水也不是一句口号。洗澡时间缩短一点、及时关紧水龙头、提醒家人不要浪费，虽然都是小事，却能培养珍惜资源的意识。更重要的是，学生要明白绿色发展需要未雨绸缪，不能等到危机出现才寻找长远之计。把每一滴水都用在值得的地方，才是物尽其用的态度。",
+        en:
+          "Good oral angle: personal habits matter because they build values before crisis arrives.",
+      },
+    ],
+    vocab: [
+      vocab("water-youhua", "水资源优化", "shuǐ zī yuán yōu huà", "water resource optimisation", "通过科技、规划和管理，让有限水源被更有效地使用。", "水资源优化能帮助新加坡应对长期用水需求。", "环境题可用：水资源优化体现了政府未雨绸缪的治理思维。"),
+      vocab("water-gongye", "工业节水", "gōng yè jié shuǐ", "industrial water conservation", "企业在生产过程中减少用水和浪费。", "工业节水不仅保护环境，也能降低企业成本。", "可用于讨论企业社会责任。"),
+      vocab("water-renxing", "韧性", "rèn xìng", "resilience", "面对压力、危机或变化时保持稳定和恢复能力。", "稳定的水源供应能增强国家韧性。", "高分表达：韧性社会需要长远规划，而不是临时补救。"),
+      vocab("water-xunhuan", "循环利用", "xún huán lì yòng", "recycle and reuse", "把资源处理后再次使用，减少浪费。", "工厂可循环利用废水，减少对新水源的依赖。", "环保与科技题常用。"),
+      vocab("water-choumou", "未雨绸缪", "wèi yǔ chóu móu", "prepare for difficulties in advance", "还没有下雨就先修补门窗，比喻提前准备。", "面对水源压力，政府必须未雨绸缪。", "议论文高级成语：未雨绸缪比亡羊补牢更有效。"),
+      vocab("water-changyuan", "长远之计", "cháng yuǎn zhī jì", "long-term solution", "能够从根本上解决问题的长期办法。", "节水创新是保障水安全的长远之计。", "可和“权宜之计”对比使用。"),
+    ],
+    phrases: [
+      phrase("water-xishui", "成语", "细水长流", "xì shuǐ cháng liú", "节约使用，才能长期维持。", "水资源管理讲求细水长流，不能只看眼前方便。"),
+      phrase("water-kaiyuan", "俗语", "开源节流", "kāi yuán jié liú", "增加来源，同时减少浪费。", "面对资源有限的现实，政府和企业都需要开源节流。"),
+      phrase("water-haoci", "好词好句", "把每一滴水都当成国家韧性的考题", "bǎ měi yī dī shuǐ dōu dāng chéng guó jiā rèn xìng de kǎo tí", "把节水提升到国家安全和社会责任层面。", "在新加坡，节水不是小题大做，而是国家韧性的一部分。"),
+    ],
+    oral: oralPack(
+      "新加坡要长期保障水资源安全，政府、企业和个人哪一方最关键？",
+      "新加坡水源有限，因此水资源优化和工业节水越来越重要。",
+      "我认为三方都重要，但政府的规划最关键，因为它能带动企业和个人行动。",
+      "政府可投入科技和制定标准，企业可循环利用水源，个人则要养成节水习惯。",
+      "学校可通过节水项目和新闻讨论，让学生从日常生活理解资源韧性。",
+      [
+        ["为什么水资源问题适合放进口试讨论？", "因为它连接环境、科技、民生和国家安全，能展现学生综合分析问题的能力。"],
+        ["企业为什么要参与节水？", "企业用水量较大，如果能改进流程，影响会比个人更明显，也能体现社会责任。"],
+        ["个人节水会不会太微不足道？", "单个人的作用有限，但习惯会影响家庭和社会风气，长期累积就有意义。"],
+      ],
+    ),
+  },
+  {
+    id: "zaobao-ai-tcm-health",
+    topicId: "health",
+    topicLabel: "健康",
+    title: "AI遇上中医：科技能不能让养生更个性化？",
+    sourceName: "联合早报",
+    sourceTitle: "从舌诊辨证到智能艾灸 AI为中医养生添助力",
+    sourceUrl: "https://www.zaobao.com.sg/news/china/story20260616-7049061",
+    sourceDate: "2026-06-16",
+    sourceSnippet:
+      "联合早报报道人工智能被用于舌诊辨证、智能艾灸等中医养生场景。本文原创改写，训练学生讨论科技、健康管理和判断力。",
+    readingTime: "8 min",
+    tags: ["人工智能", "健康管理", "中医养生", "判断力"],
+    paragraphs: [
+      {
+        zh:
+          "过去，人们谈到中医养生，常想到望闻问切、草药和艾灸。如今，人工智能开始进入这个领域，例如通过舌诊图像分析身体状态，或根据个人情况提供智能艾灸建议。这种变化让健康服务看起来更个性化，也更方便，但它同时提醒我们：科技可以辅助判断，却不能完全取代专业医生。",
+        en:
+          "Use this as a balanced tech-health discussion: convenience plus limits.",
+      },
+      {
+        zh:
+          "如果使用得当，人工智能能帮助人们更早关注身体变化。它可以整理数据、发现规律，并提醒用户改善作息、饮食和运动。不过，健康管理最怕的是误信偏方或过度依赖软件。一个算法即使再先进，也不一定了解每个人复杂的病史和生活环境。",
+        en:
+          "A strong point: AI can notice patterns, but health advice needs context and professional judgement.",
+      },
+      {
+        zh:
+          "因此，学生在讨论这类新闻时，可以强调明辨是非的重要性。科技让养生更便利，却也可能制造焦虑，让人把普通小症状看成大问题。真正负责任的做法，是把人工智能当作辅助工具，必要时寻求专业意见。对症下药，才不会让科技服务健康的初衷流于形式。",
+        en:
+          "Good exam ending: technology should support health, not create anxiety or replace judgement.",
+      },
+    ],
+    vocab: [
+      vocab("health-shezhen", "舌诊", "shé zhěn", "tongue diagnosis", "通过观察舌头状态来辅助判断身体情况。", "人工智能可通过图像分析协助舌诊。", "健康与科技题可用。"),
+      vocab("health-bianzheng", "辨证", "biàn zhèng", "diagnostic pattern analysis", "中医根据症状和体质综合判断问题。", "辨证需要经验，也需要了解个人情况。", "可用于说明AI不能完全取代专业判断。"),
+      vocab("health-aijiu", "智能艾灸", "zhì néng ài jiǔ", "smart moxibustion", "利用科技辅助控制或建议艾灸方式。", "智能艾灸让传统养生方式变得更方便。", "讨论传统文化与科技结合时可用。"),
+      vocab("health-gexinghua", "个性化", "gè xìng huà", "personalised", "根据个人情况作出调整。", "个性化健康建议比统一建议更有针对性。", "科技教育健康题都常用。"),
+      vocab("health-yangsheng", "养生", "yǎng shēng", "health preservation", "通过饮食、作息和运动维持健康。", "年轻人也应该重视养生，而不是等生病后才后悔。", "可用于健康生活方式题。"),
+      vocab("health-pianfang", "误信偏方", "wù xìn piān fāng", "wrongly trust folk remedies", "没有科学或专业依据就相信偏门治疗方法。", "误信偏方可能延误治疗。", "口试可用：公众必须提高健康素养，避免误信偏方。"),
+    ],
+    phrases: [
+      phrase("health-duizheng", "成语", "对症下药", "duì zhèng xià yào", "针对问题采取合适方法。", "健康管理必须对症下药，不能盲目照搬网络建议。"),
+      phrase("health-suyao", "俗语", "是药三分毒", "shì yào sān fēn dú", "提醒人们用药和治疗要谨慎。", "面对健康资讯，我们要记住是药三分毒，不可自行乱试。"),
+      phrase("health-haoci", "好词好句", "科技应为健康加分，而不是制造焦虑", "kē jì yīng wèi jiàn kāng jiā fēn, ér bú shì zhì zào jiāo lǜ", "强调科技应帮助人，而不是让人更不安。", "人工智能进入健康领域后，更需要清楚边界。"),
+    ],
+    oral: oralPack(
+      "人工智能进入健康管理领域，对公众来说是利大于弊，还是弊大于利？",
+      "人工智能能提供个性化健康建议，也能辅助传统养生方式。",
+      "我认为整体利大于弊，但前提是公众不能盲目依赖科技。",
+      "AI能提高便利性和效率，但健康判断需要专业知识，也涉及个人体质。",
+      "政府和学校可加强健康素养教育，让学生学会分辨可靠资讯。",
+      [
+        ["为什么年轻人也要关心健康管理？", "因为作息、饮食和运动习惯往往从年轻时形成，越早重视越能预防问题。"],
+        ["AI健康建议有什么风险？", "它可能忽略个人病史，也可能让人误把软件建议当成医生诊断。"],
+        ["传统中医和现代科技能不能结合？", "可以。科技能提高便利性和数据分析能力，但传统经验和专业判断仍然重要。"],
+      ],
+    ),
+  },
+  {
+    id: "zaobao-ai-industry-agents",
+    topicId: "technology",
+    topicLabel: "科技",
+    title: "AI智能体来了：学生为什么要理解产业变化？",
+    sourceName: "联合早报",
+    sourceTitle: "林玉文：“AI+产业”与“AI智能体”",
+    sourceUrl: "https://www.zaobao.com.sg/forum/views/story20260616-7034235",
+    sourceDate: "2026-06-16",
+    sourceSnippet:
+      "联合早报观点文章讨论“AI+产业”和AI智能体。本文原创改写为中学生可理解的科技与未来工作素材。",
+    readingTime: "8 min",
+    tags: ["AI智能体", "产业转型", "未来工作", "数据安全"],
+    paragraphs: [
+      {
+        zh:
+          "人们过去常把人工智能理解为聊天工具，但AI智能体的出现，让科技的角色更进一步。它不只是回答问题，还可能根据目标安排步骤、调用工具、整理资料，甚至协助完成一部分工作流程。对学生来说，这不只是科技新闻，而是未来学习和就业环境正在改变的信号。",
+        en:
+          "AI agents can be discussed as a shift from answering questions to carrying out tasks.",
+      },
+      {
+        zh:
+          "当人工智能进入产业转型，许多重复性劳动会被自动化处理。企业可能用AI提升效率，减少人为错误，也让员工把时间放在沟通、创意和判断上。可是，效率提高并不代表所有问题都会迎刃而解。数据安全、责任归属和员工再培训，都是社会必须认真面对的课题。",
+        en:
+          "Balanced point: productivity gains come with safety, accountability, and training concerns.",
+      },
+      {
+        zh:
+          "因此，中学生不必因为人工智能而过度焦虑，但也不能视而不见。真正重要的是学会和工具协同，懂得提出好问题、检查资料来源，并培养不容易被取代的能力。工欲善其事，必先利其器；不过，利器掌握在人手中，才不会反过来牵着人走。",
+        en:
+          "Good oral conclusion: students should learn to work with AI while keeping human judgement.",
+      },
+    ],
+    vocab: [
+      vocab("agent-zhinengti", "AI智能体", "zhì néng tǐ", "AI agent", "能够根据目标自主安排步骤并调用工具的人工智能系统。", "AI智能体可能改变人们完成工作的方式。", "科技题新词，可用来讨论未来工作。"),
+      vocab("agent-chanye", "产业转型", "chǎn yè zhuǎn xíng", "industrial transformation", "行业因科技、市场或政策而改变运作方式。", "人工智能正在推动许多行业的产业转型。", "可用于经济与科技结合题。"),
+      vocab("agent-zidonghua", "自动化", "zì dòng huà", "automation", "用机器或系统完成原本需要人手的工作。", "自动化能减少重复性劳动。", "未来就业题常用。"),
+      vocab("agent-xietong", "协同", "xié tóng", "collaborate; coordinate", "多方配合，一起完成目标。", "学生要学会与人工智能协同，而不是完全依赖它。", "高分表达：人机协同将成为未来重要能力。"),
+      vocab("agent-anquan", "数据安全", "shù jù ān quán", "data security", "保护个人或机构资料不被滥用或泄露。", "企业使用AI时必须重视数据安全。", "可用于隐私、诈骗、科技监管题。"),
+      vocab("agent-xiaolv", "提升效率", "tí shēng xiào lǜ", "improve efficiency", "用更少时间或资源完成更多事情。", "AI能帮助企业提升效率，但不能代替价值判断。", "科技利弊题基本表达。"),
+    ],
+    phrases: [
+      phrase("agent-gongyu", "成语", "工欲善其事，必先利其器", "gōng yù shàn qí shì, bì xiān lì qí qì", "要做好事情，先要准备合适工具。", "学习AI技能正是为了在未来善用工具。"),
+      phrase("agent-libing", "俗语", "利弊并存", "lì bì bìng cún", "好处和坏处同时存在。", "AI智能体利弊并存，关键在于制度和使用者素养。"),
+      phrase("agent-haoci", "好词好句", "让AI成为助手而不是替身", "ràng AI chéng wéi zhù shǒu ér bú shì tì shēn", "强调人工智能应辅助人，而不是让人放弃思考。", "学生应让AI成为助手而不是替身，保持独立判断。"),
+    ],
+    oral: oralPack(
+      "AI智能体越来越普及，学生应如何为未来工作做好准备？",
+      "AI智能体能执行更复杂的任务，未来工作模式会继续改变。",
+      "我认为学生应学习AI工具，但更要培养沟通、判断和适应能力。",
+      "重复性劳动可能被自动化取代，而人类优势在于创意、同理心和价值判断。",
+      "学校可设计项目式学习，让学生在真实任务中练习人机协同。",
+      [
+        ["AI会不会让很多人失业？", "部分工作会受影响，但也会出现新岗位。关键是社会要提供再培训，个人也要终身学习。"],
+        ["学生使用AI完成作业算不算作弊？", "如果直接复制答案就是不诚信；如果用来整理资料、检查思路，并注明使用方式，就更合理。"],
+        ["政府需要监管AI吗？", "需要。监管能保护数据安全，也能明确责任，避免技术被滥用。"],
+      ],
+    ),
+  },
 ];
 
 const state = loadState();
@@ -868,22 +1045,75 @@ function currentStreak() {
 }
 
 function highlightTerms(text, article = currentArticle()) {
-  const terms = [...article.vocab, ...article.phrases]
-    .map((item) => item.term)
-    .sort((a, b) => b.length - a.length);
-  let output = escapeHtml(text);
-  for (const term of terms) {
-    output = output.replaceAll(
-      escapeHtml(term),
-      `<mark class="inline-term">${escapeHtml(term)}</mark>`,
-    );
+  const items = [...article.vocab, ...article.phrases]
+    .sort((a, b) => b.term.length - a.term.length);
+
+  let output = "";
+  let index = 0;
+
+  while (index < text.length) {
+    const item = items.find((candidate) => text.startsWith(candidate.term, index));
+    if (item) {
+      output += state.pinyin
+        ? `<span class="inline-term pinyin-term">${renderRubyTerm(item.term, item.pinyin)}</span>`
+        : `<mark class="inline-term">${escapeHtml(item.term)}</mark>`;
+      index += item.term.length;
+    } else {
+      output += escapeHtml(text[index]);
+      index += 1;
+    }
   }
+
   return output;
+}
+
+function renderRubyTerm(term, pinyin) {
+  const chars = [...term];
+  const hanChars = chars.filter(isHanCharacter);
+  const syllables = String(pinyin || "")
+    .replace(/[，,；;]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (hanChars.length && hanChars.length === syllables.length) {
+    let syllableIndex = 0;
+    return chars
+      .map((char) => {
+        if (!isHanCharacter(char)) return escapeHtml(char);
+        const ruby = `<ruby><rb>${escapeHtml(char)}</rb><rt>${escapeHtml(syllables[syllableIndex])}</rt></ruby>`;
+        syllableIndex += 1;
+        return ruby;
+      })
+      .join("");
+  }
+
+  return `<ruby><rb>${escapeHtml(term)}</rb><rt>${escapeHtml(pinyin || "")}</rt></ruby>`;
+}
+
+function isHanCharacter(char) {
+  return /[\u3400-\u9fff]/u.test(char);
 }
 
 function recommendedArticles() {
   const current = currentArticle();
-  return [current, ...articles.filter((article) => article.id !== current.id)].slice(0, 5);
+  const picks = [current];
+  const preferredSources = ["联合早报", "8world", "CNA", "CNA TODAY"];
+
+  for (const source of preferredSources) {
+    const article = articles.find(
+      (candidate) => candidate.id !== current.id && candidate.sourceName.includes(source),
+    );
+    if (article && !picks.some((picked) => picked.id === article.id)) {
+      picks.push(article);
+    }
+  }
+
+  for (const article of articles) {
+    if (picks.length >= 5) break;
+    if (!picks.some((picked) => picked.id === article.id)) picks.push(article);
+  }
+
+  return picks.slice(0, 5);
 }
 
 function render() {
@@ -958,7 +1188,7 @@ function renderToday() {
 
     <section class="toolbar" aria-label="Reading controls">
       <button class="toggle-button ${state.pinyin ? "active" : ""}" type="button" data-toggle="pinyin">
-        拼音声调 ${state.pinyin ? "On" : "Off"}
+        词下拼音 ${state.pinyin ? "On" : "Off"}
       </button>
       <button class="toggle-button ${state.english ? "active" : ""}" type="button" data-toggle="english">
         Hints ${state.english ? "On" : "Off"}
@@ -974,7 +1204,6 @@ function renderToday() {
           .map(
             (paragraph) => `
               <p>${highlightTerms(paragraph.zh, article)}</p>
-              ${state.pinyin ? `<p class="pinyin-line">${escapeHtml(paragraph.py)}</p>` : ""}
               ${state.english ? `<p class="english-hint">${escapeHtml(paragraph.en)}</p>` : ""}
             `,
           )

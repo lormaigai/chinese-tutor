@@ -1,4 +1,4 @@
-const CACHE_NAME = "chinese-tutor-prototype-v2";
+const CACHE_NAME = "chinese-tutor-prototype-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -27,17 +27,28 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const requestUrl = new URL(event.request.url);
+  const appShellPaths = APP_SHELL.map((path) => new URL(path, self.location.href).pathname);
+  const isAppShellRequest =
+    requestUrl.origin === self.location.origin &&
+    (event.request.mode === "navigate" || appShellPaths.includes(requestUrl.pathname));
+
+  if (isAppShellRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html"))),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).catch(() => {
-          if (event.request.mode === "navigate") {
-            return caches.match("./index.html");
-          }
-          return undefined;
-        })
-      );
+      return cached || fetch(event.request).catch(() => undefined);
     }),
   );
 });
