@@ -1,5 +1,12 @@
 const DAY = 24 * 60 * 60 * 1000;
 const STORAGE_KEY = "chinese-tutor-prototype-v2";
+const ARTICLE_REFRESH_CADENCES = ["daily", "weekly"];
+const DEFAULT_REFRESH_CADENCE = "weekly";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+const PROFILE_LEAD_ENDPOINT = "";
+const ANONYMOUS_VISITOR_ENDPOINT = "";
+const LOCAL_LEAD_HISTORY_LIMIT = 2000;
+const ANON_VISITOR_STORAGE_KEY = "chinese-tutor-anon-visits-v1";
 
 const topics = [
   { id: "all", label: "全部" },
@@ -865,11 +872,426 @@ const articles = [
       ],
     ),
   },
+  {
+    id: "erp2-location-charging",
+    topicId: "technology",
+    topicLabel: "科技",
+    title: "ERP 2.0定位收费：科技便利会不会牺牲隐私？",
+    sourceName: "CNA",
+    sourceTitle: "Singapore running pilot for ERP 2 location-based charging",
+    sourceUrl: "https://www.channelnewsasia.com/singapore/erp-2-location-based-charging-trial-test-6182281",
+    sourceDate: "2026-06-16",
+    sourceSnippet:
+      "CNA报道新加坡正测试ERP 2.0定位式收费。本文改写成原创练习，讨论智慧交通、拥堵管理和个人隐私之间的平衡。",
+    readingTime: "6 min",
+    tags: ["ERP 2.0", "智慧交通", "个人隐私", "公共政策"],
+    paragraphs: [
+      {
+        zh:
+          "电子道路收费系统升级后，交通管理不再只是经过龙门架时扣费那么简单。定位式收费如果正式推行，系统就能更细致地了解车辆在不同路段、不同时间的使用情况。对城市来说，这可能帮助政府更准确地缓解交通拥堵；对驾驶者来说，也可能让收费更接近实际使用量。",
+        en:
+          "Location-based road charging can be framed as smarter transport management, not only a payment upgrade.",
+      },
+      {
+        zh:
+          "不过，科技越贴近日常生活，公众越会关心隐私。车辆位置属于敏感资料，如果收集、保存和使用方式不够透明，人们难免担心资料被误用。因此，推行新系统时，政府必须清楚说明哪些数据会被收集、保存多久、谁能读取，以及公众如何监督。",
+        en:
+          "A balanced answer should mention privacy, transparency, data retention and public trust.",
+      },
+      {
+        zh:
+          "我认为，智慧交通本身并不可怕，关键在于制度是否跟得上科技。若能以最少资料达到交通管理目的，并定期公开成效与安全审查，公众会更容易接受改变。科技应服务公共利益，而不是让人觉得生活处处被监视。",
+        en:
+          "Good conclusion: technology is useful when safeguards and public accountability are clear.",
+      },
+    ],
+    vocab: [
+      vocab("erp-dingwei", "定位收费", "ding wei shou fei", "location-based charging", "根据车辆位置或行驶距离计算费用。", "定位收费可能让道路收费更精细，但也引发隐私讨论。", "交通与科技题可用：定位收费体现了智慧城市的发展。"),
+      vocab("erp-yongdu", "交通拥堵", "jiao tong yong du", "traffic congestion", "车辆过多导致道路行驶缓慢。", "合理收费能在高峰时段减少交通拥堵。", "民生题常用：交通拥堵会影响生活效率。"),
+      vocab("erp-yinsi", "个人隐私", "ge ren yin si", "personal privacy", "个人不希望随意公开或被滥用的资料。", "科技政策必须保护个人隐私。", "科技利弊题必备表达。"),
+      vocab("erp-touming", "数据透明", "shu ju tou ming", "data transparency", "清楚说明资料如何被收集、保存和使用。", "数据透明能提升公众信任。", "可用于讨论政府与公众沟通。"),
+    ],
+    phrases: [
+      phrase("erp-shuangren", "俗语", "一把双刃剑", "yi ba shuang ren jian", "同一件事既有好处也有风险。", "定位收费是一把双刃剑，既能改善交通，也会带来隐私顾虑。"),
+      phrase("erp-haoci", "好词好句", "科技应服务公共利益", "ke ji ying fu wu gong gong li yi", "强调科技发展要以社会整体福祉为目标。", "智慧交通政策必须让科技服务公共利益。"),
+    ],
+    oral: oralPack(
+      "你认为定位式道路收费对新加坡来说是利大于弊，还是弊大于利？",
+      "新加坡正在测试更精细的智慧交通收费方式。",
+      "我认为利大于弊，但前提是政府必须保护数据安全并提高透明度。",
+      "它能缓解交通拥堵，让道路使用更公平；可是位置数据也涉及个人隐私。",
+      "政府可公开数据使用规则，并定期让独立机构审查系统安全。",
+      [
+        ["为什么交通政策需要科技？", "因为城市道路有限，科技能帮助政府更准确地了解高峰时段和拥堵路段。"],
+        ["公众为什么会担心定位收费？", "因为车辆位置属于敏感资料，如果使用方式不清楚，人们会担心被追踪或资料外泄。"],
+        ["学生可以从这个新闻学到什么？", "学生可以学习如何从利弊两面讨论科技政策，并提出制度保障。"],
+      ],
+    ),
+  },
+  {
+    id: "el-nino-heat-resilience",
+    topicId: "environment",
+    topicLabel: "环境",
+    title: "厄尔尼诺可能回归：炎热天气为什么考验城市韧性？",
+    sourceName: "CNA",
+    sourceTitle: "El Nino could return as early as end-2026: What does this mean for Singapore?",
+    sourceUrl: "https://www.channelnewsasia.com/singapore/el-nino-could-return-2026-what-does-mean-singapore-6165386",
+    sourceDate: "2026-06-02",
+    sourceSnippet:
+      "CNA报道厄尔尼诺现象可能在2026年底回归。本文原创改写为气候、烟霾、节水和城市韧性的口试素材。",
+    readingTime: "6 min",
+    tags: ["气候变化", "厄尔尼诺", "城市韧性", "烟霾"],
+    paragraphs: [
+      {
+        zh:
+          "厄尔尼诺听起来像遥远的气候名词，但它可能影响新加坡人的日常生活。天气更热、更干时，用电量可能上升，水资源压力也会增加。若周边地区发生林火，跨境烟霾还可能影响空气质量和户外活动。",
+        en:
+          "Connect El Nino to heat, water use, electricity demand and haze risk.",
+      },
+      {
+        zh:
+          "面对极端天气，城市韧性非常重要。政府需要提前做好应急准备，例如加强天气预警、提醒公众节水、照顾年长者和户外工作者。同时，学校也可以借新闻教育学生理解气候风险，而不是只把环保当成口号。",
+        en:
+          "Urban resilience includes warning systems, public habits and care for vulnerable groups.",
+      },
+      {
+        zh:
+          "我认为，气候变化最可怕的地方，是它常常以小变化的形式出现，直到影响累积起来才被看见。节约用电、减少浪费、关注天气预警，看似普通，却能让社会更有准备。防患于未然，比灾害发生后才补救更有效。",
+        en:
+          "Good closing idea: small habits and early preparation reduce climate risk.",
+      },
+    ],
+    vocab: [
+      vocab("heat-elnino", "厄尔尼诺", "e er ni nuo", "El Nino", "一种会影响全球天气的气候现象。", "厄尔尼诺可能导致天气更炎热、更干燥。", "环境题新词，可用于讨论极端天气。"),
+      vocab("heat-renxing", "城市韧性", "cheng shi ren xing", "urban resilience", "城市面对冲击后维持运作并恢复的能力。", "城市韧性越强，社会越能应对极端天气。", "高分表达：气候变化考验城市韧性。"),
+      vocab("heat-yanmai", "跨境烟霾", "kua jing yan mai", "transboundary haze", "从其他地区飘来的烟雾污染。", "干旱季节可能增加跨境烟霾风险。", "适合环保与区域合作题。"),
+      vocab("heat-yingji", "应急准备", "ying ji zhun bei", "emergency preparedness", "在危机发生前做好计划和资源安排。", "应急准备能降低极端天气带来的伤害。", "可用于灾害、健康和社会题。"),
+    ],
+    phrases: [
+      phrase("heat-weiyu", "成语", "未雨绸缪", "wei yu chou mou", "事情发生前先做好准备。", "面对厄尔尼诺，政府和公众都应未雨绸缪。"),
+      phrase("heat-fanghuan", "成语", "防患于未然", "fang huan yu wei ran", "在问题发生前预防它。", "气候政策应防患于未然，而不是事后补救。"),
+    ],
+    oral: oralPack(
+      "面对更炎热的天气，新加坡人最需要改变什么生活习惯？",
+      "气候现象可能带来高温、干旱和烟霾风险。",
+      "我认为最需要改变的是能源和用水习惯，同时要更重视弱势群体。",
+      "个人习惯会影响资源压力，而年长者和户外工作者更容易受炎热天气影响。",
+      "学校和社区可加强气候教育，让公众学会看预警、节水和减少浪费。",
+      [
+        ["为什么学生要关心厄尔尼诺？", "因为它会影响天气、健康和生活成本，并不是离我们很远的科学名词。"],
+        ["个人行动真的有用吗？", "单个人力量有限，但当许多人一起节约资源，就能减轻社会压力。"],
+        ["政府能做什么？", "政府可以加强预警系统、改善遮荫设施，并支持受高温影响较大的群体。"],
+      ],
+    ),
+  },
+  {
+    id: "kit-chan-local-music",
+    topicId: "culture",
+    topicLabel: "文化",
+    title: "从演唱会到文化通行证：为什么本地音乐也需要年轻观众？",
+    sourceName: "CNA Lifestyle",
+    sourceTitle: "Kit Chan to stage first solo concert in Singapore in 3 years this September",
+    sourceUrl: "https://www.channelnewsasia.com/entertainment/kit-chan-singapore-concert-2026-6186681",
+    sourceDate: "2026-06-16",
+    sourceSnippet:
+      "CNA Lifestyle报道陈洁仪将在新加坡举行个人演唱会。本文原创改写为本地音乐、文化消费和身份认同的练习。",
+    readingTime: "6 min",
+    tags: ["本地音乐", "文化消费", "身份认同", "年轻观众"],
+    paragraphs: [
+      {
+        zh:
+          "一场本地歌手的演唱会，不只是娱乐活动，也是一种文化记忆。许多歌曲陪伴不同年代的人成长，歌词里可能有城市、家庭、语言和情感的影子。当年轻观众愿意走进剧场或演唱会，他们接触的不只是旋律，也是在认识本地创作的生命力。",
+        en:
+          "Frame a local concert as cultural memory and not merely entertainment.",
+      },
+      {
+        zh:
+          "不过，本地文化要吸引年轻人并不容易。网络平台让他们能随时接触全球音乐，选择变多后，本地作品更需要被看见。文化通行证、学校活动和社交媒体推广，都可以降低门槛，让年轻人愿意尝试。",
+        en:
+          "Good balanced point: global entertainment creates competition, so access and promotion matter.",
+      },
+      {
+        zh:
+          "我认为，支持本地音乐并不是要求每个人只听本地歌，而是让本地创作者有继续创作的空间。当观众愿意购票、分享和讨论，本地文化才不会流于形式。文化不是远方的风景，而是我们生活里可以继续发光的声音。",
+        en:
+          "Conclusion idea: supporting local arts keeps culture alive in ordinary life.",
+      },
+    ],
+    vocab: [
+      vocab("music-bendi", "本地音乐", "ben di yin yue", "local music", "由本地歌手或创作者创作、演出的音乐。", "本地音乐能反映新加坡人的生活经验。", "文化题常用：支持本地音乐有助于培养身份认同。"),
+      vocab("music-xiaofei", "文化消费", "wen hua xiao fei", "cultural consumption", "花时间或金钱参与艺术、演出、阅读等文化活动。", "文化消费能支持创作者，也能丰富精神生活。", "可用于讨论文化通行证。"),
+      vocab("music-gongming", "共鸣", "gong ming", "resonance", "因为有相似经历或情感而产生理解。", "本地歌曲容易让观众产生共鸣。", "口试可用：故事越贴近生活，越能引起共鸣。"),
+      vocab("music-menkan", "降低门槛", "jiang di men kan", "lower the barrier", "让更多人更容易参与。", "补贴和宣传能降低年轻人接触艺术的门槛。", "文化、教育和科技题都常用。"),
+    ],
+    phrases: [
+      phrase("music-yuyin", "成语", "余音绕梁", "yu yin rao liang", "形容音乐优美，令人回味。", "优秀的本地音乐能让人余音绕梁，也让人记住城市的故事。"),
+      phrase("music-haoci", "好词好句", "文化不是远方的风景", "wen hua bu shi yuan fang de feng jing", "强调文化就在日常生活中。", "学校应让学生明白，文化不是远方的风景，而是身边的共同记忆。"),
+    ],
+    oral: oralPack(
+      "年轻人为什么应该多接触本地音乐和本地演出？",
+      "本地演出和音乐能展现新加坡人的情感与城市记忆。",
+      "我认为年轻人应该多接触，但推广方式必须贴近他们的生活。",
+      "这样能支持创作者、增强身份认同，也能让文化传承更自然。",
+      "学校可结合演出观赏、歌词讨论和创作活动，让文化走进生活。",
+      [
+        ["为什么年轻人可能不熟悉本地音乐？", "因为他们接触全球内容很方便，本地作品如果缺少宣传，就容易被忽略。"],
+        ["文化通行证有帮助吗？", "有帮助，因为它降低了尝试的门槛，但还需要学校和家庭持续引导。"],
+        ["本地文化一定要传统吗？", "不一定。本地文化也可以是流行音乐、电影、文学和年轻人的创作。"],
+      ],
+    ),
+  },
+  {
+    id: "child-myopia-learning-habits",
+    topicId: "education",
+    topicLabel: "教育",
+    title: "近视不是换眼镜这么简单：学生怎样保护长期学习力？",
+    sourceName: "CNA Commentary",
+    sourceTitle: "Commentary: If your child's myopia keeps getting worse, here's what you should know",
+    sourceUrl: "https://www.channelnewsasia.com/commentary/child-myopia-eye-health-singapore-6161566",
+    sourceDate: "2026-06-15",
+    sourceSnippet:
+      "CNA评论讨论儿童近视和眼睛健康。本文原创改写为学生学习习惯、屏幕使用和家庭教育素材。",
+    readingTime: "6 min",
+    tags: ["学习习惯", "近视", "屏幕时间", "家庭教育"],
+    paragraphs: [
+      {
+        zh:
+          "对学生来说，近视常常被看成一件小事：度数加深了，就换一副眼镜。可是，视力管理其实和学习习惯密切相关。长时间近距离用眼、缺少户外活动、过度使用电子屏幕，都可能让眼睛长期处于紧张状态。",
+        en:
+          "Myopia can be linked to study habits, screen time and outdoor activity.",
+      },
+      {
+        zh:
+          "学校和家长不应只在成绩上给孩子压力，也要帮助他们建立健康的学习节奏。适当休息、保持阅读距离、增加户外运动，不会浪费学习时间，反而能让学生更有精神、更能专注。身体是学习的本钱，这句话在眼睛健康上尤其明显。",
+        en:
+          "Health routines can support learning rather than compete with academic goals.",
+      },
+      {
+        zh:
+          "我认为，保护视力需要防微杜渐。等问题严重后才后悔，往往已经付出更高代价。学生可以从每天的小习惯开始，例如每读一段时间就望远、减少无目的刷手机，并主动告诉家长或老师眼睛不舒服的情况。",
+        en:
+          "Good suggestion: use small daily habits before health problems worsen.",
+      },
+    ],
+    vocab: [
+      vocab("myopia-jinshi", "近视", "jin shi", "myopia", "看近处清楚，看远处模糊的视力问题。", "近视加深会影响学生看白板和日常生活。", "健康与教育题都可用。"),
+      vocab("myopia-shili", "视力管理", "shi li guan li", "vision management", "通过检查和生活习惯保护眼睛健康。", "视力管理需要学生、家长和学校共同配合。", "可用于提出具体建议。"),
+      vocab("myopia-huwai", "户外活动", "hu wai huo dong", "outdoor activity", "在室外进行的运动或休闲活动。", "增加户外活动有助于学生放松眼睛。", "教育题可用：学习不应只发生在书桌前。"),
+      vocab("myopia-pingmu", "屏幕时间", "ping mu shi jian", "screen time", "使用手机、电脑和平板的时间。", "控制屏幕时间能保护视力，也能提高专注力。", "适合讨论数码生活。"),
+    ],
+    phrases: [
+      phrase("myopia-fangwei", "成语", "防微杜渐", "fang wei du jian", "在问题刚出现时就预防它恶化。", "保护视力要防微杜渐，不能等度数加深才重视。"),
+      phrase("myopia-buqian", "俗语", "身体是学习的本钱", "shen ti shi xue xi de ben qian", "健康是学习和发展的基础。", "学生要明白，身体是学习的本钱，不能为了成绩忽视健康。"),
+    ],
+    oral: oralPack(
+      "学校应不应该限制学生在校使用电子屏幕的时间？",
+      "儿童近视和长时间近距离用眼、屏幕使用及生活习惯有关。",
+      "我认为学校应该适度限制，同时教学生负责任地使用科技。",
+      "屏幕能帮助学习，但过度使用会影响视力和专注力。",
+      "学校可安排户外活动、定时休息，并教育学生保持正确阅读距离。",
+      [
+        ["为什么保护视力也是教育问题？", "因为视力会影响学习效率，而学习习惯往往在学校和家庭中形成。"],
+        ["完全禁止电子产品可行吗？", "不太可行。更好的做法是教学生有目的地使用，并安排休息。"],
+        ["家长能做什么？", "家长可以控制无目的屏幕时间，鼓励户外活动，也要定期带孩子检查视力。"],
+      ],
+    ),
+  },
+  {
+    id: "image-abuse-digital-respect",
+    topicId: "society",
+    topicLabel: "社会",
+    title: "不是八卦，是伤害：网络时代怎样保护受害者？",
+    sourceName: "CNA",
+    sourceTitle: "New support service for victims of image-based sexual abuse",
+    sourceUrl: "https://www.channelnewsasia.com/singapore/image-based-sexual-abuse-victims-help-support-service-sg-her-empower-6185621",
+    sourceDate: "2026-06-17",
+    sourceSnippet:
+      "CNA报道新加坡推出影像性伤害受害者支援服务。本文原创改写为数码公民意识、同理心和网络责任素材。",
+    readingTime: "6 min",
+    tags: ["网络责任", "受害者支援", "同理心", "数码公民"],
+    paragraphs: [
+      {
+        zh:
+          "在网络时代，一张未经同意传播的照片或视频，可能给受害者带来长期伤害。旁观者如果把事件当成八卦继续转发，就会造成二次伤害。真正有责任感的网民，应该明白不点击、不保存、不传播，也是一种保护。",
+        en:
+          "The key social point is that forwarding harmful images can worsen the victim's trauma.",
+      },
+      {
+        zh:
+          "社会提供支援服务很重要，因为受害者往往会感到羞耻、害怕或孤立。他们需要可靠的求助渠道，也需要身边的人相信他们、陪伴他们，而不是责怪他们。面对网络伤害，法律、心理支援和公众教育缺一不可。",
+        en:
+          "Support should combine reporting channels, emotional care, law and public education.",
+      },
+      {
+        zh:
+          "我认为，学校必须把数码公民教育讲得更具体。学生不只要知道网络安全密码，也要学习尊重他人界限、拒绝转发伤害性内容，并在朋友遇到问题时鼓励他们求助。网络空间越方便，越需要同理心和自律。",
+        en:
+          "Good suggestion: digital citizenship must include respect, consent and bystander responsibility.",
+      },
+    ],
+    vocab: [
+      vocab("abuse-yingxiang", "影像性伤害", "ying xiang xing shang hai", "image-based sexual abuse", "未经同意制作、分享或威胁分享私密影像造成的伤害。", "影像性伤害会严重影响受害者的安全感。", "社会与网络安全题可谨慎使用。"),
+      vocab("abuse-ercishanghai", "二次伤害", "er ci shang hai", "secondary harm", "受害者在事件后因责怪、传播或冷漠再次受到伤害。", "继续转发照片会造成二次伤害。", "可用于讨论同理心和媒体素养。"),
+      vocab("abuse-jiexian", "尊重界限", "zun zhong jie xian", "respect boundaries", "尊重他人的隐私、意愿和安全感。", "数码公民教育应教学生尊重界限。", "适合校园、网络和社会题。"),
+      vocab("abuse-qiuzhu", "求助渠道", "qiu zhu qu dao", "help-seeking channel", "遇到困难时可以获得帮助的途径。", "清楚的求助渠道能让受害者更快获得支持。", "提出建议时很好用。"),
+    ],
+    phrases: [
+      phrase("abuse-xueshang", "成语", "雪上加霜", "xue shang jia shuang", "让原本困难的情况变得更糟。", "旁观者转发伤害性内容，只会让受害者雪上加霜。"),
+      phrase("abuse-haoci", "好词好句", "不转发也是一种保护", "bu zhuan fa ye shi yi zhong bao hu", "强调旁观者可以通过停止传播来减少伤害。", "面对网络伤害，学生要记住不转发也是一种保护。"),
+    ],
+    oral: oralPack(
+      "学校应如何教育学生面对网络上的伤害性内容？",
+      "网络传播速度快，未经同意的影像可能严重伤害受害者。",
+      "我认为学校应加强数码公民教育，并教学生成为负责任的旁观者。",
+      "学生需要明白转发不是小事，沉默围观也可能让伤害扩大。",
+      "学校可通过真实案例讨论、求助渠道介绍和同理心训练来预防问题。",
+      [
+        ["为什么有些人会继续转发伤害性内容？", "他们可能把事件当成八卦，缺少同理心，也没有意识到自己在扩大伤害。"],
+        ["受害者最需要什么？", "他们需要安全的求助渠道、法律保护和身边人的相信与支持。"],
+        ["旁观者可以做什么？", "旁观者应停止转发、保存证据，并鼓励受害者向可信任的大人或机构求助。"],
+      ],
+    ),
+  },
+  {
+    id: "pmos-health-literacy",
+    topicId: "health",
+    topicLabel: "健康",
+    title: "PCOS改名PMOS：健康知识为什么需要不断更新？",
+    sourceName: "CNA Lifestyle",
+    sourceTitle: "PCOS now has a new name: PMOS",
+    sourceUrl: "https://www.channelnewsasia.com/lifestyle/women/pcos-new-name-pmos-polycystic-ovary-metabolic-syndrome-6178061",
+    sourceDate: "2026-06-15",
+    sourceSnippet:
+      "CNA Lifestyle报道PCOS的新名称PMOS。本文原创改写为健康素养、医学名词和公众理解的练习素材。",
+    readingTime: "6 min",
+    tags: ["健康素养", "医学知识", "女性健康", "去污名化"],
+    paragraphs: [
+      {
+        zh:
+          "医学名词改变，看似只是名称更新，其实也会改变公众理解疾病的方式。PCOS被重新命名为PMOS，是为了更准确地强调代谢和激素等复杂因素，而不是让人只把问题理解成单一器官的毛病。",
+        en:
+          "A name change can shift public understanding of a health condition.",
+      },
+      {
+        zh:
+          "健康知识不断更新，提醒我们不能只依赖旧印象或网络传言。公众需要健康素养，懂得分辨可靠资料，也要愿意向专业人士咨询。错误的标签可能带来污名化，让患者觉得难以开口求助。",
+        en:
+          "Health literacy includes checking reliable sources and reducing stigma.",
+      },
+      {
+        zh:
+          "我认为，谈论健康问题时，社会应多一点尊重和科学精神。名称改变不是小题大做，而是让诊断、治疗和沟通更准确。学生学习这类新闻，也能明白健康教育不是背常识，而是培养判断力。",
+        en:
+          "Good conclusion: health education should build judgement, not only memorise facts.",
+      },
+    ],
+    vocab: [
+      vocab("pmos-daixie", "代谢", "dai xie", "metabolism", "身体把食物转化为能量并维持运作的过程。", "代谢问题可能影响体重、激素和长期健康。", "健康题常用医学词。"),
+      vocab("pmos-jisu", "激素", "ji su", "hormone", "身体分泌、调节生理功能的物质。", "激素失衡可能影响身体多个系统。", "用于解释健康问题的复杂性。"),
+      vocab("pmos-suyang", "健康素养", "jian kang su yang", "health literacy", "理解、判断和使用健康资讯的能力。", "提高健康素养能帮助公众避免误信偏方。", "健康题高分表达。"),
+      vocab("pmos-wuming", "污名化", "wu ming hua", "stigmatisation", "用负面标签看待某个群体或疾病。", "健康教育应减少对患者的污名化。", "社会与健康题都可用。"),
+    ],
+    phrases: [
+      phrase("pmos-duizheng", "成语", "对症下药", "dui zheng xia yao", "针对具体问题采取合适方法。", "医学命名更准确，才能帮助医生和患者对症下药。"),
+      phrase("pmos-haoci", "好词好句", "名称改变，观念也要更新", "ming cheng gai bian, guan nian ye yao geng xin", "提醒公众用新的理解看待健康问题。", "面对医学新知，我们要做到名称改变，观念也要更新。"),
+    ],
+    oral: oralPack(
+      "为什么公众需要提高健康素养？",
+      "医学知识不断更新，疾病名称和治疗观念也可能改变。",
+      "我认为健康素养很重要，因为它能帮助人们分辨资讯、及时求助并减少误解。",
+      "如果公众只相信旧印象或网络传言，可能延误治疗，也可能造成污名化。",
+      "学校可教学生查证健康资讯，并鼓励他们遇到问题时咨询专业人士。",
+      [
+        ["健康资讯为什么容易被误解？", "因为网络资讯很多，有些说法夸张或不完整，公众如果缺少判断力就容易相信。"],
+        ["疾病名称真的重要吗？", "重要。名称会影响公众如何理解疾病，也会影响患者是否愿意求助。"],
+        ["学生能怎样提高健康素养？", "学生可以学习查证来源，不随便相信偏方，并把严重症状告诉家长或医生。"],
+      ],
+    ),
+  },
+  {
+    id: "retrenchment-lifelong-learning",
+    topicId: "livelihood",
+    topicLabel: "民生",
+    title: "裁员数据上升：终身学习能不能给职场更多安全感？",
+    sourceName: "CNA",
+    sourceTitle: "Retrenchments climb in Q1, with degree holders and older workers most affected",
+    sourceUrl:
+      "https://www.channelnewsasia.com/singapore/retrenchments-unemployment-resignation-degree-holders-older-workers-q1-2026-mom-labour-market-report-6176721",
+    sourceDate: "2026-06-15",
+    sourceSnippet:
+      "CNA报道2026年第一季裁员人数上升。本文原创改写为职场转型、终身学习和民生安全感素材。",
+    readingTime: "7 min",
+    tags: ["裁员", "终身学习", "职场转型", "民生"],
+    paragraphs: [
+      {
+        zh:
+          "裁员数字上升，会让许多家庭感到不安。对年长员工和拥有学位的员工来说，失去工作不只是收入问题，也关系到自信、家庭责任和未来规划。经济环境变化时，过去稳定的工作也可能突然面对挑战。",
+        en:
+          "Retrenchment affects income, confidence and family planning, not only labour statistics.",
+      },
+      {
+        zh:
+          "终身学习常被视为解决办法，但它不能只是一句口号。员工需要时间、资金和清楚的转业路径，企业也要愿意培训员工，而不是一遇到困难就放弃他们。政府的就业支援、技能培训和职业咨询，能帮助受影响者更快重新站起来。",
+        en:
+          "Lifelong learning works only when workers have time, funding and realistic pathways.",
+      },
+      {
+        zh:
+          "我认为，职场安全感不可能完全来自一份工作，而应来自持续学习和社会支援。居安思危不是制造焦虑，而是提醒我们在顺利时也要准备下一步。学生现在培养适应能力，将来面对变化时才不会手足无措。",
+        en:
+          "Good oral conclusion: security comes from adaptability plus social support.",
+      },
+    ],
+    vocab: [
+      vocab("job-caiyuan", "裁员", "cai yuan", "retrenchment", "公司因经济或业务原因减少员工。", "裁员会影响家庭收入和个人信心。", "民生与经济题常用。"),
+      vocab("job-zhuanxing", "职场转型", "zhi chang zhuan xing", "workplace transition", "工作内容、技能需求或行业结构发生改变。", "科技发展加快了职场转型。", "可用于未来工作题。"),
+      vocab("job-zhongshen", "终身学习", "zhong shen xue xi", "lifelong learning", "离开学校后仍持续学习新知识和技能。", "终身学习能帮助员工适应变化。", "教育、科技、就业题通用。"),
+      vocab("job-zaipeixun", "再培训", "zai pei xun", "reskilling", "学习新技能以转向新的岗位或行业。", "受裁员影响的员工可能需要再培训。", "提出政策建议时可用。"),
+    ],
+    phrases: [
+      phrase("job-juansi", "成语", "居安思危", "ju an si wei", "在安稳时也想到可能的危机。", "职场人士应居安思危，持续提升技能。"),
+      phrase("job-haoci", "好词好句", "饭碗安全感不能只靠一份合约", "fan wan an quan gan bu neng zhi kao yi fen he yue", "强调就业安全来自能力和社会支援。", "面对职场转型，饭碗安全感不能只靠一份合约。"),
+    ],
+    oral: oralPack(
+      "面对裁员风险，个人和社会应该如何应对？",
+      "经济环境变化可能导致裁员，年长员工和家庭负担较重者会受到较大影响。",
+      "我认为个人要终身学习，社会也要提供实际支援，不能把责任全推给个人。",
+      "持续提升技能能增加适应力，但培训、就业咨询和企业责任同样重要。",
+      "政府可加强再培训津贴，企业可为员工规划转型路径，学校则要培养学生的适应能力。",
+      [
+        ["终身学习为什么重要？", "因为行业变化很快，过去学到的技能未必能应付未来工作。"],
+        ["裁员只影响个人吗？", "不是。它会影响家庭收入、心理健康和社会信心。"],
+        ["学生现在能准备什么？", "学生可以培养沟通、数码能力和解决问题的能力，也要保持学习新事物的习惯。"],
+      ],
+    ),
+  },
 ];
 
 const state = loadState();
 let timerId = null;
 let deferredInstallPrompt = null;
+let pendingSelectionText = "";
+let signupPromptOpen = false;
+let continueAfterSignup = false;
+
+function createSelectionToolbar() {
+  const toolbar = document.createElement("div");
+  toolbar.className = "selection-toolbar";
+  toolbar.hidden = true;
+  toolbar.innerHTML = `
+    <p class="selection-title">未识别词汇</p>
+    <p class="selection-term" data-selection-term></p>
+    <div class="selection-actions">
+      <button class="primary-button compact" type="button" data-add-selected>加到词汇本</button>
+      <button class="secondary-button compact" type="button" data-cancel-selection>取消</button>
+    </div>
+  `;
+  document.body.appendChild(toolbar);
+  return toolbar;
+}
+
+const selectionToolbar = createSelectionToolbar();
+const selectionTermNode = selectionToolbar.querySelector("[data-selection-term]");
 
 function vocab(id, term, pinyin, english, meaning, example, examUse) {
   return { id, term, pinyin, english, meaning, example, examUse, type: "vocab" };
@@ -893,6 +1315,336 @@ function oralPack(prompt, phenomenon, stance, reason, suggestion, questions) {
   };
 }
 
+function oralAgreementPrompt(prompt) {
+  const text = sanitizeText(prompt, 180);
+  if (!text) return "你认同这篇文章的观点吗？";
+
+  const withoutQuestion = text.replace(/[？?！!。.;。；;,\s]+$/g, "").trim();
+  const statement = withoutQuestion || text;
+
+  if (/你同意吗[？?]?$/.test(statement)) {
+    return `${statement.endsWith("？") ? statement.slice(0, -1) : statement}`;
+  }
+
+  return `${statement}。你同意吗？`;
+}
+
+const SAFE_ID = /^[a-z0-9-]{3,80}$/i;
+
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sanitizeText(value, maxLength = 200) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/\u0000|\u007f/g, "")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function sanitizeEmail(value) {
+  const email = sanitizeText(value, 254).toLowerCase();
+  return EMAIL_PATTERN.test(email) ? email : "";
+}
+
+function sanitizeActionId(raw) {
+  const id = String(raw || "").trim();
+  return SAFE_ID.test(id) ? id : "";
+}
+
+function clampInt(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  const safe = Math.floor(Math.max(min, Math.min(max, number)));
+  return Number.isFinite(safe) ? safe : fallback;
+}
+
+function sanitizeDateString(value) {
+  const formatted = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(formatted) ? formatted : "";
+}
+
+function isHttpEndpoint(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url.trim());
+}
+
+function sanitizeTimestamp(value) {
+  const time = Number(value);
+  if (!Number.isFinite(time)) return Date.now();
+  if (time < 0) return 0;
+  if (time > Date.now() + 365 * 24 * 60 * 60 * 1000) return Date.now();
+  return time;
+}
+
+function getAnonymousVisitStats() {
+  const fallback = { total: 0, uniqueDays: 0, lastVisitDate: "", lastVisitAt: null };
+
+  try {
+    const raw = localStorage.getItem(ANON_VISITOR_STORAGE_KEY);
+    if (!raw) return fallback;
+
+    const parsed = JSON.parse(raw);
+    if (!isRecord(parsed)) return fallback;
+
+    const uniqueDays = Number(parsed.uniqueDays);
+    const total = Number(parsed.total);
+
+    return {
+      total: Number.isFinite(total) && total > 0 ? Math.floor(total) : 0,
+      uniqueDays: Number.isFinite(uniqueDays) && uniqueDays >= 0 ? Math.floor(uniqueDays) : 0,
+      lastVisitDate: sanitizeDateString(parsed.lastVisitDate),
+      lastVisitAt: sanitizeTimestamp(parsed.lastVisitAt),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function trackAnonymousVisit() {
+  try {
+    const today = singaporeDateKey();
+    const stats = getAnonymousVisitStats();
+    const isNewDay = stats.lastVisitDate !== today;
+
+    const nextStats = {
+      total: stats.total + 1,
+      uniqueDays: stats.uniqueDays + (isNewDay ? 1 : 0),
+      lastVisitDate: today,
+      lastVisitAt: Date.now(),
+    };
+
+    localStorage.setItem(ANON_VISITOR_STORAGE_KEY, JSON.stringify(nextStats));
+
+    if (ANONYMOUS_VISITOR_ENDPOINT && isHttpEndpoint(ANONYMOUS_VISITOR_ENDPOINT)) {
+      sendAnonymousVisit({
+        event: "app_visit",
+        path: window.location.pathname,
+        time: new Date().toISOString(),
+        visitDate: today,
+      }).catch(() => {});
+    }
+  } catch {
+    // Privacy-safe no-op if storage or network is blocked.
+  }
+}
+
+async function sendAnonymousVisit(payload) {
+  if (!isHttpEndpoint(ANONYMOUS_VISITOR_ENDPOINT)) return;
+
+  const response = await fetch(ANONYMOUS_VISITOR_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`anonymous visitor endpoint responded ${response.status}`);
+  }
+}
+
+function parseCompletedDates(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(sanitizeDateString).filter(Boolean).slice(-60);
+}
+
+function parsePipeline(raw) {
+  const fallback = {
+    status: "fallback",
+    message: "Prototype article library ready",
+    checkedAt: null,
+  };
+  if (!isRecord(raw)) return fallback;
+
+  return {
+    status: raw.status === "live" ? "live" : "fallback",
+    message: sanitizeText(raw.message || fallback.message, 160),
+    checkedAt: raw.checkedAt === null ? null : sanitizeTimestamp(raw.checkedAt),
+  };
+}
+
+function parseRefreshCadence(value) {
+  return ARTICLE_REFRESH_CADENCES.includes(value) ? value : DEFAULT_REFRESH_CADENCE;
+}
+
+function emptyProfile() {
+  return {
+    displayName: "",
+    email: "",
+    wantsUpdates: false,
+    refreshCadence: DEFAULT_REFRESH_CADENCE,
+    createdAt: null,
+  };
+}
+
+function parseProfile(raw) {
+  const fallback = emptyProfile();
+  if (!isRecord(raw)) return fallback;
+
+  const email = sanitizeEmail(raw.email);
+  return {
+    displayName: sanitizeText(raw.displayName, 80),
+    email,
+    wantsUpdates: raw.wantsUpdates === true,
+    refreshCadence: parseRefreshCadence(raw.refreshCadence),
+    createdAt: email ? sanitizeTimestamp(raw.createdAt) : null,
+  };
+}
+
+function normalizeLeadRecord(raw) {
+  const email = sanitizeEmail(raw?.email);
+  if (!email) return null;
+
+  return {
+    displayName: sanitizeText(raw.displayName, 80),
+    email,
+    wantsUpdates: raw.wantsUpdates === true,
+    refreshCadence: parseRefreshCadence(raw.refreshCadence),
+    source: sanitizeText(raw.source || "chinese-tutor-app", 80),
+    page: sanitizeText(raw.page, 220),
+    createdAt: sanitizeTimestamp(raw.createdAt),
+  };
+}
+
+function parseLeadRecords(raw) {
+  if (!Array.isArray(raw)) return [];
+
+  const map = new Map();
+  for (const entry of raw) {
+    const lead = normalizeLeadRecord(entry);
+    if (!lead) continue;
+
+    const existing = map.get(lead.email);
+    if (!existing || lead.createdAt >= existing.createdAt) {
+      map.set(lead.email, lead);
+    }
+  }
+
+  return [...map.values()]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, LOCAL_LEAD_HISTORY_LIMIT);
+}
+
+function formatLeadTime(value) {
+  try {
+    return new Intl.DateTimeFormat("zh-SG", {
+      timeZone: "Asia/Singapore",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value || Date.now()));
+  } catch {
+    return "";
+  }
+}
+
+function upsertLeadToLog(lead) {
+  const safeLead = normalizeLeadRecord(lead);
+  if (!safeLead) return;
+
+  const existing = state.leads || [];
+  const next = [safeLead, ...existing.filter((item) => item.email !== safeLead.email)];
+  state.leads = next.slice(0, LOCAL_LEAD_HISTORY_LIMIT);
+}
+
+function csvField(value) {
+  const text = String(value ?? "").replace(/[\r\n]+/g, " ");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function exportLeadCsv() {
+  const leads = state.leads || [];
+  if (!leads.length) {
+    showToast("当前还没有邮箱可导出");
+    return;
+  }
+
+  const header = ["name", "email", "wants_updates", "refresh_cadence", "source", "page", "created_at"];
+  const rows = leads.map((lead) => [
+    csvField(lead.displayName),
+    csvField(lead.email),
+    csvField(lead.wantsUpdates ? "true" : "false"),
+    csvField(lead.refreshCadence),
+    csvField(lead.source),
+    csvField(lead.page),
+    csvField(new Date(lead.createdAt).toISOString()),
+  ]);
+  const csv = "\ufeff" + header.join(",") + "\n" + rows.map((row) => row.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  const filename = `chinese-tutor-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  showToast("邮箱列表已导出");
+}
+
+function parseSavedState(raw) {
+  if (!isRecord(raw)) return {};
+
+  const safe = {};
+  for (const [rawId, entry] of Object.entries(raw)) {
+    const id = sanitizeActionId(rawId);
+    if (!id) continue;
+
+    const builtIn = itemById(id);
+    if (builtIn) {
+      safe[id] = { item: { ...builtIn }, savedAt: sanitizeTimestamp(entry?.savedAt) };
+      continue;
+    }
+
+    const item = isRecord(entry) ? entry.item : null;
+    if (!isRecord(item)) continue;
+
+    const term = sanitizeManualTerm(item.term);
+    if (!term) continue;
+
+    const rawArticleId = sanitizeActionId(item.articleId || "");
+    safe[id] = {
+      item: {
+        id,
+        term,
+        pinyin: sanitizeText(item.pinyin, 160),
+        english: sanitizeText(item.english || "自定义词", 120) || "自定义词",
+        meaning: sanitizeText(item.meaning || "请补充释义并复习。", 420),
+        example: sanitizeText(item.example || "可在复习时回想该词在语境中的用法。", 420),
+        examUse: sanitizeText(item.examUse, 420),
+        type: item.type || "manual",
+        articleId: rawArticleId && articles.some((article) => article.id === rawArticleId) ? rawArticleId : "",
+        articleTitle: sanitizeText(item.articleTitle, 120),
+      },
+      savedAt: sanitizeTimestamp(entry?.savedAt),
+    };
+  }
+
+  return safe;
+}
+
+function parseReviewState(raw, savedEntries) {
+  if (!isRecord(raw)) return {};
+  const safe = {};
+
+  for (const [rawId, entry] of Object.entries(raw)) {
+    const id = sanitizeActionId(rawId);
+    if (!id || !isRecord(entry) || !savedEntries[id]) continue;
+
+    safe[id] = {
+      interval: clampInt(entry.interval, 1, 30, 1),
+      dueAt: sanitizeTimestamp(entry.dueAt),
+      seen: clampInt(entry.seen, 0, 5000, 0),
+      mastered: entry.mastered === true,
+    };
+  }
+  return safe;
+}
+
 function loadState() {
   const fallback = {
     tab: "today",
@@ -904,7 +1656,9 @@ function loadState() {
     reviews: {},
     completedDates: [],
     notes: "",
+    leads: [],
     timerLeft: 120,
+    profile: emptyProfile(),
     pipeline: {
       status: "fallback",
       message: "Prototype article library ready",
@@ -912,15 +1666,42 @@ function loadState() {
     },
   };
 
-  try {
-    return { ...fallback, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") };
-  } catch {
-    return fallback;
-  }
+  const raw = safeParseState();
+  if (!isRecord(raw)) return fallback;
+
+  const safeSaved = parseSavedState(raw.saved);
+  return {
+    ...fallback,
+    tab: ["today", "review", "saved", "oral", "profile"].includes(raw.tab) ? raw.tab : fallback.tab,
+    articleId: articles.some((article) => article.id === raw.articleId) ? raw.articleId : fallback.articleId,
+    topicFilter: topics.some((topic) => topic.id === raw.topicFilter) ? raw.topicFilter : fallback.topicFilter,
+    pinyin: typeof raw.pinyin === "boolean" ? raw.pinyin : fallback.pinyin,
+    english: typeof raw.english === "boolean" ? raw.english : fallback.english,
+    saved: safeSaved,
+    reviews: parseReviewState(raw.reviews, safeSaved),
+    completedDates: parseCompletedDates(raw.completedDates),
+    notes: sanitizeText(raw.notes, 2000),
+    leads: parseLeadRecords(raw.leads),
+    timerLeft: clampInt(raw.timerLeft, 0, 600, fallback.timerLeft),
+    profile: parseProfile(raw.profile),
+    pipeline: parsePipeline(raw.pipeline),
+  };
 }
 
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {}
+}
+
+function safeParseState() {
+  try {
+    const text = localStorage.getItem(STORAGE_KEY);
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 function singaporeDateKey(date = new Date()) {
@@ -955,6 +1736,32 @@ function currentArticle() {
   return articles.find((article) => article.id === state.articleId) || articles[0];
 }
 
+function hasProfile() {
+  return Boolean(state.profile?.email);
+}
+
+function isProfileRequiredForReading() {
+  return !hasProfile() && state.tab === "today";
+}
+
+function profileDisplayName() {
+  if (!hasProfile()) return "";
+  return state.profile.displayName || state.profile.email.split("@")[0];
+}
+
+function openSignupPrompt(shouldContinue = false) {
+  signupPromptOpen = true;
+  continueAfterSignup = shouldContinue;
+  render();
+  window.setTimeout(() => document.querySelector(".signup-modal [data-profile-email]")?.focus(), 0);
+}
+
+function closeSignupPrompt() {
+  signupPromptOpen = false;
+  continueAfterSignup = false;
+  render();
+}
+
 function filteredArticles() {
   if (state.topicFilter === "all") return articles;
   return articles.filter((article) => article.topicId === state.topicFilter);
@@ -969,6 +1776,11 @@ function setArticle(id) {
 }
 
 function nextArticle() {
+  if (!hasProfile()) {
+    openSignupPrompt(true);
+    return;
+  }
+
   const list = filteredArticles();
   const currentIndex = Math.max(0, list.findIndex((article) => article.id === state.articleId));
   const next = list[(currentIndex + 1) % list.length];
@@ -976,7 +1788,110 @@ function nextArticle() {
   showToast(`已切换：${next.topicLabel}`);
 }
 
+function saveProfileFromForm(form) {
+  const email = sanitizeEmail(form?.querySelector("[data-profile-email]")?.value);
+  const displayName = sanitizeText(form?.querySelector("[data-profile-name]")?.value, 80);
+  const wantsUpdates = Boolean(form?.querySelector("[data-profile-updates]")?.checked);
+  const consent = form?.querySelector("[data-profile-consent]");
+
+  if (!email) {
+    showToast("请输入有效的电子邮件");
+    return;
+  }
+
+  if (consent && !consent.checked) {
+    showToast("请先同意创建免费账户");
+    return;
+  }
+
+  state.profile = {
+    ...emptyProfile(),
+    ...state.profile,
+    displayName,
+    email,
+    wantsUpdates,
+    refreshCadence: parseRefreshCadence(state.profile?.refreshCadence),
+    createdAt: state.profile?.createdAt || Date.now(),
+  };
+  upsertLeadToLog({
+    displayName,
+    email,
+    wantsUpdates,
+    refreshCadence: parseRefreshCadence(state.profile?.refreshCadence),
+    source: "chinese-tutor-profile",
+    page: window.location.href,
+    createdAt: Date.now(),
+  });
+
+  persist();
+  const shouldContinue = continueAfterSignup;
+  signupPromptOpen = false;
+  continueAfterSignup = false;
+
+  if (PROFILE_LEAD_ENDPOINT && profileEmailCaptureEnabled()) {
+    sendProfileLead({
+      name: displayName,
+      email,
+      wantsUpdates,
+      refreshCadence: parseRefreshCadence(state.profile?.refreshCadence),
+      createdAt: new Date(state.profile?.createdAt || Date.now()).toISOString(),
+    }).catch(() => {});
+  }
+
+  if (shouldContinue) {
+    nextArticle();
+    return;
+  }
+
+  render();
+  showToast("免费账户已保存");
+}
+
+function profileEmailCaptureEnabled() {
+  return isHttpEndpoint(PROFILE_LEAD_ENDPOINT);
+}
+
+async function sendProfileLead(payload) {
+  try {
+    const response = await fetch(PROFILE_LEAD_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: "chinese-tutor",
+        page: window.location.href,
+        ...payload,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`lead endpoint responded ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Failed to send lead", error);
+    throw error;
+  }
+}
+
+function deleteProfile() {
+  state.profile = emptyProfile();
+  persist();
+  render();
+  showToast("已删除本机账户资料");
+}
+
+function setRefreshCadence(cadence) {
+  state.profile = {
+    ...emptyProfile(),
+    ...state.profile,
+    refreshCadence: parseRefreshCadence(cadence),
+  };
+  persist();
+  render();
+  showToast(state.profile.refreshCadence === "daily" ? "已设为每日更新" : "已设为每周更新");
+}
+
 function setTopicFilter(topicId) {
+  if (!topics.some((topic) => topic.id === topicId)) return;
   state.topicFilter = topicId;
   const list = filteredArticles();
   if (!list.some((article) => article.id === state.articleId)) {
@@ -995,6 +1910,141 @@ function allLearnableItems() {
 
 function itemById(id) {
   return allLearnableItems().find((item) => item.id === id);
+}
+
+function itemByTerm(term) {
+  const normalized = normalizeTermForLookup(term);
+  return allLearnableItems().find((item) => normalizeTermForLookup(item.term) === normalized);
+}
+
+function normalizeTermForLookup(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/\s+/g, "")
+    .replace(/[\u200B\uFEFF]/g, "")
+    .toLowerCase();
+}
+
+function findSavedItemByTerm(term) {
+  const normalized = normalizeTermForLookup(term);
+  return Object.entries(state.saved).find(
+    ([, entry]) => normalizeTermForLookup(entry.item?.term || "") === normalized,
+  );
+}
+
+function hasSavedTerm(term) {
+  return Boolean(findSavedItemByTerm(term));
+}
+
+function makeManualWordId(term) {
+  const key = normalizeTermForLookup(term);
+  let hash = 2166136261;
+  for (const char of key) {
+    hash ^= char.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `manual-${(hash >>> 0).toString(36)}-${Date.now().toString(36).slice(-6)}`;
+}
+
+function sanitizeManualTerm(raw) {
+  const cleaned = String(raw || "")
+    .normalize("NFKC")
+    .replace(/[\u200B\uFEFF]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+  if (!cleaned) return "";
+  if (cleaned.length > 24) return "";
+  const safe = cleaned.replace(/^[^a-zA-Z0-9\u4e00-\u9fff]+|[^a-zA-Z0-9\u4e00-\u9fff]+$/g, "");
+  if (!safe) return "";
+  if (!/^[a-zA-Z0-9\u4e00-\u9fff]+$/u.test(safe)) return "";
+  return safe;
+}
+
+function addManualSelectionToSaved() {
+  const article = currentArticle();
+  const term = sanitizeManualTerm(pendingSelectionText);
+  if (!term) {
+    hideSelectionToolbar();
+    return;
+  }
+
+  if (itemByTerm(term) || hasSavedTerm(term)) {
+    showToast(`${term} 已在词汇本`);
+    hideSelectionToolbar();
+    return;
+  }
+
+  const id = makeManualWordId(term);
+  const item = {
+    id,
+    term,
+    pinyin: "",
+    english: "自定义词",
+    meaning: "请补充释义。",
+    example: "可在复习时回想该词在文中的用法。",
+    examUse: "建议结合原文造句并反复复习。",
+    type: "manual",
+    articleId: article.id,
+    articleTitle: article.title,
+  };
+
+  state.saved[id] = {
+    item,
+    savedAt: Date.now(),
+  };
+  reviewFor(id);
+  persist();
+  showToast(`已加入词汇：${term}`);
+  hideSelectionToolbar();
+  render();
+}
+
+function hideSelectionToolbar() {
+  pendingSelectionText = "";
+  window.getSelection()?.removeAllRanges();
+  selectionToolbar.hidden = true;
+}
+
+function showSelectionToolbar(term, range) {
+  pendingSelectionText = term;
+  selectionTermNode.textContent = term;
+  const passage = document.querySelector(".passage");
+  const rect = range.getBoundingClientRect();
+  const left = Math.max(10, Math.min(window.innerWidth - 300, rect.left + rect.width / 2 - 100));
+  const top = Math.max(80, rect.top - 72);
+  const clampedTop = Math.min(top, window.innerHeight - 120);
+  selectionToolbar.style.left = `${left}px`;
+  selectionToolbar.style.top = `${clampedTop}px`;
+  selectionToolbar.hidden = false;
+}
+
+function evaluateSelectionForManual() {
+  const passage = document.querySelector(".passage");
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || !passage) {
+    hideSelectionToolbar();
+    return;
+  }
+
+  const range = selection.getRangeAt(0);
+  const fromNode = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer;
+  const toNode = range.endContainer.nodeType === Node.TEXT_NODE ? range.endContainer.parentElement : range.endContainer;
+  if (!passage.contains(fromNode) || !passage.contains(toNode)) {
+    hideSelectionToolbar();
+    return;
+  }
+
+  const term = sanitizeManualTerm(selection.toString());
+  if (!term) {
+    hideSelectionToolbar();
+    return;
+  }
+
+  if (itemByTerm(term) || hasSavedTerm(term)) {
+    hideSelectionToolbar();
+    return;
+  }
+  showSelectionToolbar(term, range);
 }
 
 function savedItems() {
@@ -1044,9 +2094,12 @@ function currentStreak() {
   return count;
 }
 
-function highlightTerms(text, article = currentArticle()) {
+function highlightTerms(text, article = currentArticle(), paragraphPinyin = "") {
   const items = [...article.vocab, ...article.phrases]
     .sort((a, b) => b.term.length - a.term.length);
+  const pinyinTokens = extractPinyinTokens(paragraphPinyin);
+  const shouldRenderWordPinyin = state.pinyin && pinyinTokens.length > 0;
+  let pinyinIndex = 0;
 
   let output = "";
   let index = 0;
@@ -1054,17 +2107,61 @@ function highlightTerms(text, article = currentArticle()) {
   while (index < text.length) {
     const item = items.find((candidate) => text.startsWith(candidate.term, index));
     if (item) {
+      const consumed = countHanCharacters(item.term);
+      const itemPinyin =
+        item.pinyin || (shouldRenderWordPinyin && consumed > 0
+          ? pinyinTokens.slice(pinyinIndex, pinyinIndex + consumed).join(" ")
+          : "");
+
+      if (shouldRenderWordPinyin || item.pinyin) {
+        pinyinIndex = Math.min(pinyinIndex + consumed, pinyinTokens.length);
+      }
+
       output += state.pinyin
-        ? `<span class="inline-term pinyin-term">${renderRubyTerm(item.term, item.pinyin)}</span>`
+        ? `<span class="inline-term pinyin-term">${renderRubyTerm(item.term, itemPinyin)}</span>`
         : `<mark class="inline-term">${escapeHtml(item.term)}</mark>`;
       index += item.term.length;
-    } else {
-      output += escapeHtml(text[index]);
-      index += 1;
+      continue;
     }
+
+    const char = text[index];
+    if (shouldRenderWordPinyin && isHanCharacter(char)) {
+      output += `<span class="inline-term pinyin-term">${renderRubyTerm(char, pinyinTokens[pinyinIndex] || "")}</span>`;
+      pinyinIndex += 1;
+    } else {
+      output += escapeHtml(char);
+    }
+    index += 1;
   }
 
   return output;
+}
+
+function extractPinyinTokens(raw = "") {
+  if (typeof raw !== "string") return [];
+
+  return raw
+    .normalize("NFKC")
+    .replace(/[\r\n\t]+/g, " ")
+    .split(/\s+/)
+    .map((token) =>
+      token
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^A-Za-z'-]/g, ""),
+    )
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function countHanCharacters(value) {
+  let count = 0;
+  for (const char of String(value || "")) {
+    if (isHanCharacter(char)) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 function renderRubyTerm(term, pinyin) {
@@ -1094,6 +2191,16 @@ function isHanCharacter(char) {
   return /[\u3400-\u9fff]/u.test(char);
 }
 
+function sanitizeSafeUrl(url) {
+  const raw = String(url || "").trim();
+  try {
+    const parsed = new URL(raw);
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : "javascript:void(0)";
+  } catch {
+    return "javascript:void(0)";
+  }
+}
+
 function recommendedArticles() {
   const current = currentArticle();
   const picks = [current];
@@ -1116,10 +2223,36 @@ function recommendedArticles() {
   return picks.slice(0, 5);
 }
 
+function renderManualVocabSection(article) {
+  const manualItems = savedItems()
+    .filter((item) => item.type === "manual" && item.articleId === article.id)
+    .slice(0, 6);
+
+  return `
+    <section class="panel">
+      <div class="section-heading">
+        <h2>自选词汇</h2>
+        <span class="small">高亮未识别词汇并加入</span>
+      </div>
+      ${
+        manualItems.length
+          ? `<div class="grid two">${manualItems.map(renderVocabCard).join("")}</div>`
+          : `<p class="small">从文章中高亮生词后可直接加入词汇。</p>`
+      }
+    </section>
+  `;
+}
+
 function render() {
+  hideSelectionToolbar();
   document.querySelectorAll("[data-nav]").forEach((button) => {
     button.classList.toggle("active", button.dataset.nav === state.tab);
   });
+
+  if (isProfileRequiredForReading() && !signupPromptOpen) {
+    signupPromptOpen = true;
+    continueAfterSignup = false;
+  }
 
   const titleMap = {
     today: "今日沉浸",
@@ -1138,7 +2271,7 @@ function render() {
     oral: renderOral,
     profile: renderProfile,
   };
-  view.innerHTML = renderers[state.tab]();
+  view.innerHTML = `${renderers[state.tab]()}${renderSignupModal()}`;
 }
 
 function renderToday() {
@@ -1170,10 +2303,10 @@ function renderToday() {
 
     <section class="lesson-hero">
       <div class="hero-copy">
-        <div class="source-row">
-          <span class="chip">${escapeHtml(article.topicLabel)}</span>
-          <span class="chip amber">${escapeHtml(article.readingTime)}</span>
-          <a class="source-link" href="${article.sourceUrl}" target="_blank" rel="noreferrer">
+      <div class="source-row">
+        <span class="chip">${escapeHtml(article.topicLabel)}</span>
+        <span class="chip amber">${escapeHtml(article.readingTime)}</span>
+          <a class="source-link" href="${sanitizeSafeUrl(article.sourceUrl)}" target="_blank" rel="noreferrer">
             源文：${escapeHtml(article.sourceName)}
           </a>
         </div>
@@ -1203,7 +2336,7 @@ function renderToday() {
         ${article.paragraphs
           .map(
             (paragraph) => `
-              <p>${highlightTerms(paragraph.zh, article)}</p>
+              <p>${highlightTerms(paragraph.zh, article, paragraph.py)}</p>
               ${state.english ? `<p class="english-hint">${escapeHtml(paragraph.en)}</p>` : ""}
             `,
           )
@@ -1222,6 +2355,8 @@ function renderToday() {
       <h2>今日词句</h2>
       ${article.phrases.map(renderPhraseItem).join("")}
     </section>
+
+    ${renderManualVocabSection(article)}
 
     <section class="panel">
       <div class="section-heading">
@@ -1255,6 +2390,7 @@ function renderToday() {
 }
 
 function renderSourceCard(article) {
+  const sourceUrl = sanitizeSafeUrl(article.sourceUrl);
   return `
     <article class="source-card">
       <div>
@@ -1262,7 +2398,7 @@ function renderSourceCard(article) {
         <h3>${escapeHtml(article.sourceTitle)}</h3>
         <p class="small">${escapeHtml(article.sourceDate)} · ${escapeHtml(article.topicLabel)}</p>
       </div>
-      <a class="text-link" href="${article.sourceUrl}" target="_blank" rel="noreferrer">打开源文</a>
+      <a class="text-link" href="${sourceUrl}" target="_blank" rel="noreferrer">打开源文</a>
     </article>
   `;
 }
@@ -1276,7 +2412,7 @@ function renderArticleRow(article) {
         <h3>${escapeHtml(article.title)}</h3>
         <p class="small">${escapeHtml(article.sourceName)} · ${escapeHtml(article.readingTime)}</p>
       </div>
-      <button class="secondary-button compact" type="button" data-open-article="${article.id}">
+      <button class="secondary-button compact" type="button" data-open-article="${escapeHtml(article.id)}">
         ${active ? "正在读" : "阅读"}
       </button>
     </article>
@@ -1285,20 +2421,26 @@ function renderArticleRow(article) {
 
 function renderVocabCard(item) {
   const saved = Boolean(state.saved[item.id]);
+  const pinyin = item.pinyin ? escapeHtml(item.pinyin) : "未填写";
+  const english = item.english ? escapeHtml(item.english) : "自定义词";
+  const meaning = item.meaning ? escapeHtml(item.meaning) : "请补充释义并反复复习。";
+  const example = item.example ? escapeHtml(item.example) : "可用原文语境造句并记忆。";
+  const examUse = item.examUse ? escapeHtml(item.examUse) : "";
+
   return `
     <article class="vocab-card">
       <div class="vocab-top">
         <div>
           <div class="term">${escapeHtml(item.term)}</div>
-          <div class="term-meta tone">${escapeHtml(item.pinyin)} · ${escapeHtml(item.english)}</div>
+          <div class="term-meta tone">${pinyin} · ${english}</div>
         </div>
-        <button class="mini-action ${saved ? "saved" : ""}" type="button" data-save="${item.id}" aria-label="Save ${escapeHtml(item.term)}">
+        <button class="mini-action ${saved ? "saved" : ""}" type="button" data-save="${escapeHtml(item.id)}" aria-label="Save ${escapeHtml(item.term)}">
           <svg><use href="#${saved ? "icon-check" : "icon-plus"}"></use></svg>
         </button>
       </div>
-      <p class="example">${escapeHtml(item.meaning)}</p>
-      <p class="example">${escapeHtml(item.example)}</p>
-      <div class="exam-use">${escapeHtml(item.examUse)}</div>
+      <p class="example">${meaning}</p>
+      <p class="example">${example}</p>
+      ${examUse ? `<div class="exam-use">${examUse}</div>` : ""}
     </article>
   `;
 }
@@ -1313,7 +2455,7 @@ function renderPhraseItem(item) {
           <strong>${escapeHtml(item.term)}</strong>
           <div class="term-meta tone">${escapeHtml(item.pinyin)}</div>
         </div>
-        <button class="mini-action ${saved ? "saved" : ""}" type="button" data-save="${item.id}" aria-label="Save ${escapeHtml(item.term)}">
+        <button class="mini-action ${saved ? "saved" : ""}" type="button" data-save="${escapeHtml(item.id)}" aria-label="Save ${escapeHtml(item.term)}">
           <svg><use href="#${saved ? "icon-check" : "icon-plus"}"></use></svg>
         </button>
       </div>
@@ -1392,8 +2534,8 @@ function renderReviewCard(item) {
       <p class="small">${escapeHtml(item.articleTitle || "阅读库词句")}</p>
       <p class="example">${escapeHtml(item.example)}</p>
       <div class="action-row">
-        <button class="secondary-button" type="button" data-grade="${item.id}" data-result="again">再来</button>
-        <button class="primary-button" type="button" data-grade="${item.id}" data-result="good">记得</button>
+        <button class="secondary-button" type="button" data-grade="${escapeHtml(item.id)}" data-result="again">再来</button>
+        <button class="primary-button" type="button" data-grade="${escapeHtml(item.id)}" data-result="good">记得</button>
       </div>
     </article>
   `;
@@ -1434,7 +2576,7 @@ function renderSavedCard(item) {
           <div class="term">${escapeHtml(item.term)}</div>
           <div class="term-meta tone">${escapeHtml(item.pinyin || "")} · ${escapeHtml(item.type)}</div>
         </div>
-        <button class="mini-action" type="button" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.term)}">
+        <button class="mini-action" type="button" data-remove="${escapeHtml(item.id)}" aria-label="Remove ${escapeHtml(item.term)}">
           <svg><use href="#icon-trash"></use></svg>
         </button>
       </div>
@@ -1442,8 +2584,8 @@ function renderSavedCard(item) {
       <p class="example">${escapeHtml(item.meaning)}</p>
       <p class="example">${escapeHtml(item.example)}</p>
       <div class="action-row">
-        <button class="secondary-button" type="button" data-grade="${item.id}" data-result="good">安排复习</button>
-        <button class="secondary-button" type="button" data-master="${item.id}">
+        <button class="secondary-button" type="button" data-grade="${escapeHtml(item.id)}" data-result="good">安排复习</button>
+        <button class="secondary-button" type="button" data-master="${escapeHtml(item.id)}">
           ${review.mastered ? "已掌握" : "标为掌握"}
         </button>
       </div>
@@ -1453,10 +2595,11 @@ function renderSavedCard(item) {
 
 function renderOral() {
   const article = currentArticle();
+  const prompt = oralAgreementPrompt(article.oral?.prompt);
   return `
     <section class="card">
       <span class="chip coral">${escapeHtml(article.topicLabel)} · 口头报告 · 2 min</span>
-      <h2>${escapeHtml(article.oral.prompt)}</h2>
+      <h2>${escapeHtml(prompt)}</h2>
       <div class="timer-row">
         <span class="timer">${formatTimer(state.timerLeft)}</span>
         <button class="primary-button" type="button" data-timer="start">开始</button>
@@ -1499,13 +2642,142 @@ function renderOral() {
   `;
 }
 
+function renderProfileForm({ modal = false } = {}) {
+  const profile = state.profile || emptyProfile();
+  const needsConsent = modal || !hasProfile();
+  const buttonLabel = hasProfile() ? "保存账户" : "创建免费账户";
+
+  return `
+    <div class="profile-form" data-profile-form>
+      <label class="profile-field">
+        <span>名字</span>
+        <input class="profile-input" data-profile-name autocomplete="name" maxlength="80" placeholder="可选" value="${escapeHtml(profile.displayName)}" />
+      </label>
+      <label class="profile-field">
+        <span>电子邮件</span>
+        <input class="profile-input" data-profile-email autocomplete="email" inputmode="email" maxlength="254" placeholder="you@example.com" value="${escapeHtml(profile.email)}" />
+      </label>
+      ${needsConsent ? `
+        <label class="checkbox-row">
+          <input type="checkbox" data-profile-consent />
+          <span>我同意用这个邮箱创建免费学习账户。</span>
+        </label>
+      ` : ""}
+      <label class="checkbox-row">
+        <input type="checkbox" data-profile-updates ${profile.wantsUpdates ? "checked" : ""} />
+        <span>接收新文章提醒和学习更新。</span>
+      </label>
+      <p class="privacy-note">默认仅把资料保存在本机浏览器。若你在源码中配置回传端点，创建免费账户时会同步提交姓名与邮箱。</p>
+      <div class="action-row">
+        ${modal ? "" : `<button class="secondary-button" type="button" data-export-leads>导出用户列表（CSV）</button>`}
+        <button class="primary-button" type="button" data-create-profile>${buttonLabel}</button>
+        ${modal ? `<button class="secondary-button" type="button" data-close-signup>稍后</button>` : ""}
+      </div>
+      ${modal ? "" : renderLeadDirectory()}
+    </div>
+  `;
+}
+
+function renderSignupModal() {
+  if (!signupPromptOpen) return "";
+  const requireAccount = isProfileRequiredForReading();
+  return `
+    <div class="modal-backdrop" data-signup-modal>
+      <section class="signup-modal ${requireAccount ? "signup-modal--required" : ""}" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
+        <span class="chip warm">Free profile</span>
+        ${requireAccount ? '<p class="small">Please add your email before reading.</p>' : ""}
+        <h2 id="signupTitle">创建免费账户继续读下一篇</h2>
+        <p class="small">用电子邮件保存学习档案、更新节奏和新文章提醒偏好。</p>
+        ${renderProfileForm({ modal: true })}
+      </section>
+    </div>
+  `;
+}
+
+function renderRefreshCadenceControls() {
+  const cadence = parseRefreshCadence(state.profile?.refreshCadence);
+  return `
+    <div class="toolbar compact-toolbar" aria-label="Article refresh cadence">
+      <button class="toggle-button ${cadence === "daily" ? "active" : ""}" type="button" data-refresh-cadence="daily">
+        Daily
+      </button>
+      <button class="toggle-button ${cadence === "weekly" ? "active" : ""}" type="button" data-refresh-cadence="weekly">
+        Weekly
+      </button>
+    </div>
+  `;
+}
+
+function renderLeadDirectory() {
+  const leads = state.leads || [];
+  if (!leads.length) {
+    return `<p class="small">暂无邮箱记录。用户点击“创建免费账户”后会保存到本机名单。</p>`;
+  }
+
+  return `
+    <div class="lead-list">
+      ${leads
+        .map(
+          (lead) => `
+            <div class="lead-item">
+              <strong>${escapeHtml(lead.displayName || lead.email.split("@")[0])}</strong>
+              <span>${escapeHtml(lead.email)}</span>
+              <span class="small">
+                订阅更新：${lead.wantsUpdates ? "是" : "否"} ｜ 更新频率：${lead.refreshCadence} ｜ 来源：${escapeHtml(
+            lead.source,
+          )} ｜ ${formatLeadTime(lead.createdAt)}
+              </span>
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderTopicInventory() {
+  return topics
+    .filter((topic) => topic.id !== "all")
+    .map((topic) => {
+      const count = articles.filter((article) => article.topicId === topic.id).length;
+      return `<span class="chip soft">${escapeHtml(topic.label)} ${count}</span>`;
+    })
+    .join("");
+}
+
 function renderProfile() {
   const pipeline = state.pipeline;
+  const visitStats = getAnonymousVisitStats();
   return `
     <section class="stats-grid">
       <div class="stat"><strong>${currentStreak()}</strong><span>day streak</span></div>
       <div class="stat"><strong>${state.completedDates.length}</strong><span>lessons done</span></div>
       <div class="stat"><strong>${savedItems().length}</strong><span>saved words</span></div>
+      <div class="stat"><strong>${visitStats.total}</strong><span>anonymous visits (local)</span></div>
+    </section>
+
+    <section class="panel">
+      <h2>免费账户</h2>
+      ${
+        hasProfile()
+          ? `
+            <div class="profile-summary">
+              <div class="metric-row">
+                <span class="chip warm">${escapeHtml(profileDisplayName())}</span>
+                <span class="chip soft">${escapeHtml(state.profile.email)}</span>
+              </div>
+              ${renderProfileForm()}
+              <button class="danger-button" type="button" data-delete-profile>删除本机账户资料</button>
+            </div>
+          `
+          : renderProfileForm()
+      }
+    </section>
+
+    <section class="panel">
+      <h2>新闻更新节奏</h2>
+      ${renderRefreshCadenceControls()}
+      <p class="small">正式版可按这个节奏从批准来源为每个主题挑选近期新闻，生成原创练习稿，并在发布前做版权、安全和质量检查。</p>
     </section>
 
     <section class="panel">
@@ -1526,6 +2798,9 @@ function renderProfile() {
         <div class="stat"><strong>${topics.length - 1}</strong><span>主题筛选</span></div>
         <div class="stat"><strong>${allLearnableItems().length}</strong><span>可收藏词句</span></div>
       </div>
+      <div class="chip-row inventory-row">
+        ${renderTopicInventory()}
+      </div>
     </section>
 
     <section class="panel">
@@ -1540,7 +2815,7 @@ function renderProfile() {
             (source) => `
               <article class="review-card">
                 <strong>${escapeHtml(source.name)}</strong>
-                <a href="${source.url}" target="_blank" rel="noreferrer">${escapeHtml(source.url)}</a>
+                <a href="${sanitizeSafeUrl(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.url)}</a>
                 <p class="small">${escapeHtml(source.use)}</p>
               </article>
             `,
@@ -1565,16 +2840,18 @@ function showToast(message) {
 }
 
 function toggleSave(id) {
-  const item = itemById(id);
+  const safeId = sanitizeActionId(id);
+  if (!safeId) return;
+  const item = itemByIdOrSaved(safeId);
   if (!item) return;
 
-  if (state.saved[id]) {
-    delete state.saved[id];
-    delete state.reviews[id];
+  if (state.saved[safeId]) {
+    delete state.saved[safeId];
+    delete state.reviews[safeId];
     showToast("已从词句本移除");
   } else {
-    state.saved[id] = { item, savedAt: Date.now() };
-    reviewFor(id);
+    state.saved[safeId] = { item, savedAt: Date.now() };
+    reviewFor(safeId);
     showToast(`已收藏：${item.term}`);
   }
   persist();
@@ -1647,6 +2924,42 @@ document.addEventListener("click", async (event) => {
   const target = event.target.closest("button");
   if (!target) return;
 
+  if (target.dataset.cancelSelection) {
+    hideSelectionToolbar();
+    return;
+  }
+
+  if (target.dataset.addSelected) {
+    addManualSelectionToSaved();
+    return;
+  }
+
+  if (target.hasAttribute("data-close-signup")) {
+    if (isProfileRequiredForReading() && !hasProfile()) return;
+    closeSignupPrompt();
+    return;
+  }
+
+  if (target.hasAttribute("data-create-profile")) {
+    saveProfileFromForm(target.closest("[data-profile-form]"));
+    return;
+  }
+
+  if (target.hasAttribute("data-export-leads")) {
+    exportLeadCsv();
+    return;
+  }
+
+  if (target.hasAttribute("data-delete-profile")) {
+    deleteProfile();
+    return;
+  }
+
+  if (target.dataset.refreshCadence) {
+    setRefreshCadence(target.dataset.refreshCadence);
+    return;
+  }
+
   if (target.dataset.nav) {
     state.tab = target.dataset.nav;
     persist();
@@ -1684,7 +2997,8 @@ document.addEventListener("click", async (event) => {
   }
 
   if (target.dataset.save) {
-    toggleSave(target.dataset.save);
+    const id = sanitizeActionId(target.dataset.save);
+    if (id) toggleSave(id);
     return;
   }
 
@@ -1696,13 +3010,16 @@ document.addEventListener("click", async (event) => {
   }
 
   if (target.dataset.grade) {
-    gradeReview(target.dataset.grade, target.dataset.result);
+    const id = sanitizeActionId(target.dataset.grade);
+    if (id) gradeReview(id, target.dataset.result);
     return;
   }
 
   if (target.dataset.remove) {
-    delete state.saved[target.dataset.remove];
-    delete state.reviews[target.dataset.remove];
+    const id = sanitizeActionId(target.dataset.remove);
+    if (!id) return;
+    delete state.saved[id];
+    delete state.reviews[id];
     persist();
     render();
     showToast("已移除");
@@ -1710,7 +3027,9 @@ document.addEventListener("click", async (event) => {
   }
 
   if (target.dataset.master) {
-    const review = reviewFor(target.dataset.master);
+    const id = sanitizeActionId(target.dataset.master);
+    if (!id) return;
+    const review = reviewFor(id);
     review.mastered = !review.mastered;
     persist();
     render();
@@ -1718,21 +3037,24 @@ document.addEventListener("click", async (event) => {
   }
 
   if (target.dataset.reveal) {
-    const item = itemById(target.dataset.reveal);
+    const id = sanitizeActionId(target.dataset.reveal);
+    const item = id ? itemByIdOrSaved(id) : null;
     showToast(item ? item.term : "答案未找到");
     return;
   }
 
   if (target.dataset.checkDictation) {
-    const input = document.querySelector(`[data-dictation-input="${target.dataset.checkDictation}"]`);
-    const item = itemById(target.dataset.checkDictation);
+    const id = sanitizeActionId(target.dataset.checkDictation);
+    if (!id) return;
+    const input = document.querySelector(`[data-dictation-input="${id}"]`);
+    const item = itemByIdOrSaved(id);
     const correct = item && input?.value.trim() === item.term;
     showToast(correct ? "正确" : `再想想：${item?.term || ""}`);
     return;
   }
 
   if (target.dataset.sample) {
-    const sample = document.getElementById(`sample-${target.dataset.sample}`);
+    const sample = document.getElementById(`sample-${String(target.dataset.sample || "").replace(/\\D/g, "")}`);
     if (sample) sample.hidden = !sample.hidden;
     return;
   }
@@ -1754,6 +3076,17 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+document.addEventListener("selectionchange", () => {
+  evaluateSelectionForManual();
+});
+document.addEventListener("mouseup", () => {
+  window.setTimeout(() => evaluateSelectionForManual(), 10);
+});
+document.addEventListener("touchend", () => {
+  window.setTimeout(() => evaluateSelectionForManual(), 10);
+});
+window.addEventListener("scroll", hideSelectionToolbar, true);
+
 document.addEventListener("input", (event) => {
   if (event.target.matches("[data-notes]")) {
     state.notes = event.target.value;
@@ -1771,5 +3104,6 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 
+trackAnonymousVisit();
 render();
 checkPipelineHealth();
