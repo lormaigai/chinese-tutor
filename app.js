@@ -8,6 +8,8 @@ const ANONYMOUS_VISITOR_ENDPOINT = "";
 const LOCAL_LEAD_HISTORY_LIMIT = 2000;
 const ANON_VISITOR_STORAGE_KEY = "chinese-tutor-anon-visits-v1";
 const DAILY_ARTICLE_ID = "daily-recent";
+const PINYIN_ENGINE_URL = "https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/+esm";
+const PINYIN_CACHE_LIMIT = 250;
 const RECENT_HEADLINE_WINDOW_DAYS = 7;
 const RECENT_HEADLINE_LIMIT = 36;
 const HEADLINE_FEEDS = [
@@ -1428,6 +1430,10 @@ let oralRecordingUrl = "";
 let oralRecordingStatus = "idle";
 let oralRecordingSeconds = 0;
 let oralRecordingTimerId = null;
+let pinyinEngine = null;
+let pinyinEnginePromise = null;
+let pinyinEngineFailed = false;
+const pinyinCache = new Map();
 
 function createSelectionToolbar() {
   const toolbar = document.createElement("div");
@@ -1472,16 +1478,64 @@ function oralPack(prompt, phenomenon, stance, reason, suggestion, questions) {
 
 function oralAgreementPrompt(prompt) {
   const text = sanitizeText(prompt, 180);
-  if (!text) return "你认同这篇文章的观点吗？";
+  if (!text) return "这篇文章的观点值得我们重视。你同意吗？";
 
-  const withoutQuestion = text.replace(/[？?！!。.;。；;,\s]+$/g, "").trim();
-  const statement = withoutQuestion || text;
+  const statement = promptToStatement(text);
+  return `${statement}。你同意吗？`;
+}
 
-  if (/你同意吗[？?]?$/.test(statement)) {
-    return `${statement.endsWith("？") ? statement.slice(0, -1) : statement}`;
+function promptToStatement(prompt) {
+  let statement = String(prompt || "")
+    .replace(/[？?！!。.;。；;,\s]+$/g, "")
+    .trim();
+
+  statement = statement
+    .replace(/^你认为/, "")
+    .replace(/^你觉得/, "")
+    .replace(/^请谈谈你是否认为/, "")
+    .trim();
+
+  statement = statement
+    .replace(/(.+)[，,]最大的(困难|挑战)是什么$/g, "$1会面对很大的$2")
+    .replace(/(.+)最需要改变什么生活习惯$/g, "$1需要改变生活习惯")
+    .replace(/为什么/g, "")
+    .replace(/应该如何应对$/g, "应该积极应对")
+    .replace(/应如何/g, "应该")
+    .replace(/应该如何/g, "应该")
+    .replace(/如何/g, "应该");
+
+  const replacements = [
+    [/应不应该/g, "应该"],
+    [/该不该/g, "应该"],
+    [/能不能/g, "能"],
+    [/可不可以/g, "可以"],
+    [/会不会/g, "会"],
+    [/要不要/g, "要"],
+    [/有没有必要/g, "有必要"],
+    [/是否应该/g, "应该"],
+    [/是否需要/g, "需要"],
+    [/是否能够/g, "能够"],
+    [/是否能/g, "能"],
+    [/是不是/g, "是"],
+    [/有没有/g, "有"],
+    [/是利大于弊，还是弊大于利$/g, "是利大于弊"],
+    [/利大于弊，还是弊大于利$/g, "利大于弊"],
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    statement = statement.replace(pattern, replacement);
   }
 
-  return `${statement}。你同意吗？`;
+  statement = statement
+    .replace(/吗$/g, "")
+    .replace(/呢$/g, "")
+    .replace(/[，,]还是[^，。！？?]+$/g, "")
+    .replace(/,/g, "，")
+    .replace(/;/g, "；")
+    .replace(/:/g, "：")
+    .trim();
+
+  return statement || "这篇文章的观点值得我们重视";
 }
 
 function isRecord(value) {
@@ -2320,11 +2374,63 @@ function currentStreak() {
   return count;
 }
 
+function ensurePinyinEngine() {
+  if (pinyinEngine || pinyinEngineFailed) return pinyinEnginePromise || Promise.resolve(pinyinEngine);
+
+  pinyinEnginePromise = import(PINYIN_ENGINE_URL)
+    .then((module) => {
+      pinyinEngine = module.pinyin;
+      pinyinCache.clear();
+      if (state.pinyin) render();
+      return pinyinEngine;
+    })
+    .catch(() => {
+      pinyinEngineFailed = true;
+      showToast("完整拼音暂时加载失败，先显示本地拼音");
+      return null;
+    });
+
+  return pinyinEnginePromise;
+}
+
+function pinyinTokensForText(text, providedPinyin = "") {
+  const safeText = String(text || "");
+  if (!safeText) return [];
+
+  if (pinyinEngine) {
+    const cached = pinyinCache.get(safeText);
+    if (cached) return cached;
+
+    let tokens = [];
+    try {
+      const converted = pinyinEngine(safeText, {
+        type: "array",
+        toneType: "symbol",
+        nonZh: "removed",
+        separator: " ",
+        toneSandhi: true,
+      });
+      tokens = Array.isArray(converted) ? converted.map(normalizePinyinToken).filter(Boolean) : [];
+    } catch {
+      tokens = [];
+    }
+
+    if (tokens.length) {
+      if (pinyinCache.size >= PINYIN_CACHE_LIMIT) {
+        pinyinCache.delete(pinyinCache.keys().next().value);
+      }
+      pinyinCache.set(safeText, tokens);
+      return tokens;
+    }
+  }
+
+  return extractPinyinTokens(providedPinyin);
+}
+
 function highlightTerms(text, article = currentArticle(), paragraphPinyin = "") {
   const items = [...article.vocab, ...article.phrases]
     .sort((a, b) => b.term.length - a.term.length);
-  const pinyinTokens = extractPinyinTokens(paragraphPinyin);
-  const shouldRenderWordPinyin = state.pinyin && pinyinTokens.length > 0;
+  const pinyinTokens = state.pinyin ? pinyinTokensForText(text, paragraphPinyin) : [];
   let pinyinIndex = 0;
 
   let output = "";
@@ -2334,12 +2440,15 @@ function highlightTerms(text, article = currentArticle(), paragraphPinyin = "") 
     const item = items.find((candidate) => text.startsWith(candidate.term, index));
     if (item) {
       const consumed = countHanCharacters(item.term);
+      const generatedItemPinyin = state.pinyin ? pinyinTokensForText(item.term, item.pinyin) : [];
       const itemPinyin =
-        item.pinyin || (shouldRenderWordPinyin && consumed > 0
+        generatedItemPinyin.length
+          ? generatedItemPinyin.join(" ")
+          : item.pinyin || (state.pinyin && consumed > 0
           ? pinyinTokens.slice(pinyinIndex, pinyinIndex + consumed).join(" ")
           : "");
 
-      if (shouldRenderWordPinyin || item.pinyin) {
+      if (state.pinyin) {
         pinyinIndex = Math.min(pinyinIndex + consumed, pinyinTokens.length);
       }
 
@@ -2351,7 +2460,7 @@ function highlightTerms(text, article = currentArticle(), paragraphPinyin = "") 
     }
 
     const char = text[index];
-    if (shouldRenderWordPinyin && isHanCharacter(char)) {
+    if (state.pinyin && isHanCharacter(char)) {
       output += `<span class="inline-term pinyin-term">${renderRubyTerm(char, pinyinTokens[pinyinIndex] || "")}</span>`;
       pinyinIndex += 1;
     } else {
@@ -2364,20 +2473,22 @@ function highlightTerms(text, article = currentArticle(), paragraphPinyin = "") 
 }
 
 function extractPinyinTokens(raw = "") {
+  if (Array.isArray(raw)) return raw.map(normalizePinyinToken).filter(Boolean);
   if (typeof raw !== "string") return [];
 
   return raw
-    .normalize("NFKC")
+    .normalize("NFC")
     .replace(/[\r\n\t]+/g, " ")
     .split(/\s+/)
-    .map((token) =>
-      token
-        .normalize("NFKD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^A-Za-z'-]/g, ""),
-    )
-    .map((token) => token.trim())
+    .map(normalizePinyinToken)
     .filter(Boolean);
+}
+
+function normalizePinyinToken(token) {
+  return String(token || "")
+    .normalize("NFC")
+    .replace(/[^\p{Letter}\u0300-\u036f'-]+/gu, "")
+    .trim();
 }
 
 function countHanCharacters(value) {
@@ -3775,9 +3886,14 @@ document.addEventListener("click", async (event) => {
   }
 
   if (target.dataset.toggle) {
-    state[target.dataset.toggle] = !state[target.dataset.toggle];
+    const toggleKey = target.dataset.toggle;
+    state[toggleKey] = !state[toggleKey];
     persist();
     render();
+    if (toggleKey === "pinyin" && state.pinyin) {
+      showToast(pinyinEngine ? "完整拼音已开启" : "正在加载完整拼音");
+      ensurePinyinEngine();
+    }
     return;
   }
 
@@ -3921,4 +4037,5 @@ if ("serviceWorker" in navigator) {
 
 trackAnonymousVisit();
 render();
+if (state.pinyin) ensurePinyinEngine();
 checkPipelineHealth();
