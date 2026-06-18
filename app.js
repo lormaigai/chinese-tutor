@@ -13,7 +13,7 @@ const PINYIN_CACHE_LIMIT = 250;
 const RECENT_HEADLINE_WINDOW_DAYS = 7;
 const RECENT_HEADLINE_LIMIT = 24;
 const WEEKLY_MAILER_SEND_LABEL = "Sunday 8:00am SGT";
-const CHINESE_SOURCE_NAMES = ["8world", "联合早报", "Zaobao"];
+const CHINESE_SOURCE_NAMES = ["8world", "联合早报", "Zaobao", "早报校园", "ZBSchools"];
 const HEADLINE_FEEDS = [
   {
     sourceName: "CNA",
@@ -28,6 +28,14 @@ const HEADLINE_FEEDS = [
 ];
 
 const CURATED_CHINESE_RECENT_HEADLINES = [
+  {
+    sourceName: "早报校园",
+    sourceTitle: "英国禁止青少年使用社媒",
+    sourceUrl: "https://www.zbschools.sg/article/detail/2026061500154?ref=home-latest",
+    sourceDate: "2026-06-15",
+    topicId: "technology",
+    sourceSnippet: "青少年上网安全、社媒监管与数码自律。",
+  },
   {
     sourceName: "联合早报",
     sourceTitle: "资媒局未来四年投4800万元 助媒体业者发展数码内容",
@@ -280,6 +288,12 @@ const allowedSources = [
     url: "https://www.zaobao.com.sg/news/singapore",
     language: "zh-SG",
     use: "Chinese current-affairs comparison source",
+  },
+  {
+    name: "早报校园",
+    url: "https://www.zbschools.sg/",
+    language: "zh-SG",
+    use: "Student-friendly simplified Chinese news for reading exposure",
   },
 ];
 
@@ -2785,19 +2799,58 @@ function normalizeHeadlineRecord(raw) {
   };
 }
 
-function mergeHeadlines(headlines) {
-  const map = new Map();
-  for (const headline of headlines) {
-    if (!headline) continue;
-    const key = `${headline.sourceUrl}|${headline.sourceTitle.toLowerCase()}`;
-    if (!map.has(key)) map.set(key, headline);
-  }
+function normalizedHeadlineUrl(url) {
+  const raw = String(url || "").trim();
+  if (!raw || raw === "javascript:void(0)") return "";
 
-  return [...map.values()].sort((a, b) => {
+  try {
+    const parsed = new URL(raw);
+    parsed.hash = "";
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (/^utm_/i.test(key) || ["ref", "fbclid", "gclid"].includes(key.toLowerCase())) {
+        parsed.searchParams.delete(key);
+      }
+    }
+    return `${parsed.origin}${parsed.pathname}${parsed.search}`.toLowerCase();
+  } catch {
+    return raw.split(/[?#]/)[0].toLowerCase();
+  }
+}
+
+function normalizedHeadlineTitle(title) {
+  return String(title || "")
+    .normalize("NFKC")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+}
+
+function headlineDedupeKeys(headline) {
+  return [
+    normalizedHeadlineUrl(headline.sourceUrl) && `url:${normalizedHeadlineUrl(headline.sourceUrl)}`,
+    normalizedHeadlineTitle(headline.sourceTitle) && `title:${normalizedHeadlineTitle(headline.sourceTitle)}`,
+  ].filter(Boolean);
+}
+
+function sortHeadlinesByDate(headlines) {
+  return [...headlines].sort((a, b) => {
     const dateDiff = headlineTimestamp(b.sourceDate) - headlineTimestamp(a.sourceDate);
     if (dateDiff) return dateDiff;
     return a.sourceTitle.localeCompare(b.sourceTitle);
   });
+}
+
+function mergeHeadlines(headlines) {
+  const seen = new Set();
+  const unique = [];
+
+  for (const headline of sortHeadlinesByDate(headlines.filter(Boolean))) {
+    const keys = headlineDedupeKeys(headline);
+    if (keys.some((key) => seen.has(key))) continue;
+    keys.forEach((key) => seen.add(key));
+    unique.push(headline);
+  }
+
+  return unique;
 }
 
 function builtInRecentHeadlines() {
@@ -3007,7 +3060,7 @@ function headlineChineseReading(headline) {
   const title = headlineChineseTitle(headline);
   const sourceMode = isChineseNewsSource(headline) ? "中文源文" : "英文源文";
   return [
-    `${title}。这则${sourceMode}的标题是“${headline.sourceTitle}”。把它改成口试材料时，重点不是复制新闻细节，而是抓住“${topic}”这个核心课题，说明它为什么会影响普通人的生活。`,
+    `源文标题是“${headline.sourceTitle}”。这则${sourceMode}可以归入“${title}”。把它改成口试材料时，重点不是复制新闻细节，而是抓住“${topic}”这个核心课题，说明它为什么会影响普通人的生活。`,
     `从学生的角度来看，这类新闻可以训练我们把事实转化成观点。我们可以先概括发生了什么，再分析不同群体可能受到的影响，最后联系学校、家庭或社区提出可行建议。这样回答会比只说“我觉得重要”更有层次。`,
     `因此，阅读这则新闻时，可以记住三个方向：第一，现象背后有什么社会原因；第二，它带来哪些利弊或风险；第三，个人、学校和政府可以怎样配合。用这样的方式读新闻，才能把近期头条变成高级华文口试素材。`,
   ];
@@ -3329,12 +3382,13 @@ function renderFeaturedHeadline(headline) {
 
 function renderCompactHeadline(headline) {
   const reading = headlineChineseReading(headline);
+  const practiceAngle = headlineChineseTitle(headline);
   return `
     <article class="headline-link">
       <div>
-        <span>${escapeHtml(headlineChineseTitle(headline))}</span>
+        <span>${escapeHtml(headline.sourceTitle)}</span>
         <p>${escapeHtml(headlineChineseSummary(headline))}</p>
-        <small>源文标题：${escapeHtml(headline.sourceTitle)}</small>
+        <small>练习角度：${escapeHtml(practiceAngle)}</small>
         <small>${escapeHtml(headline.sourceDate)} · ${escapeHtml(headline.sourceName)}</small>
         <details class="headline-reading">
           <summary>展开中文练习稿</summary>
