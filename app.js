@@ -7,6 +7,7 @@ const PROFILE_LEAD_ENDPOINT = "";
 const ANONYMOUS_VISITOR_ENDPOINT = "";
 const LOCAL_LEAD_HISTORY_LIMIT = 2000;
 const ANON_VISITOR_STORAGE_KEY = "chinese-tutor-anon-visits-v1";
+const OWNER_TOOLS_STORAGE_KEY = "chinese-tutor-owner-tools-v1";
 const DAILY_ARTICLE_ID = "daily-recent";
 const PINYIN_ENGINE_URL = "https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/+esm";
 const PINYIN_CACHE_LIMIT = 250;
@@ -1532,6 +1533,7 @@ let timerId = null;
 let deferredInstallPrompt = null;
 let pendingSelectionText = "";
 let selectionToolbarPointerActive = false;
+let selectionInteractionLockUntil = 0;
 let signupPromptOpen = false;
 let continueAfterSignup = false;
 let pendingSaveIdAfterSignup = "";
@@ -1895,13 +1897,59 @@ function upsertLeadToLog(lead) {
   state.leads = next.slice(0, LOCAL_LEAD_HISTORY_LIMIT);
 }
 
+function currentProfileLeadRecord() {
+  if (!hasProfile()) return null;
+  return normalizeLeadRecord({
+    displayName: state.profile.displayName,
+    email: state.profile.email,
+    wantsUpdates: state.profile.wantsUpdates,
+    refreshCadence: state.profile.refreshCadence,
+    source: "current-profile",
+    page: window.location.href,
+    createdAt: state.profile.createdAt || Date.now(),
+  });
+}
+
+function localLeadRecords() {
+  return parseLeadRecords([...(state.leads || []), currentProfileLeadRecord()].filter(Boolean));
+}
+
+function activateOwnerToolsFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("owner") === "1" || window.location.hash === "#owner") {
+      localStorage.setItem(OWNER_TOOLS_STORAGE_KEY, "1");
+    }
+  } catch {
+    // Ignore private-mode storage failures.
+  }
+}
+
+function ownerToolsEnabled() {
+  try {
+    return localStorage.getItem(OWNER_TOOLS_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function hideOwnerTools() {
+  try {
+    localStorage.removeItem(OWNER_TOOLS_STORAGE_KEY);
+  } catch {
+    // Ignore private-mode storage failures.
+  }
+  render();
+  showToast("电邮名单已隐藏");
+}
+
 function csvField(value) {
   const text = String(value ?? "").replace(/[\r\n]+/g, " ");
   return `"${text.replace(/"/g, '""')}"`;
 }
 
 function exportLeadCsv() {
-  const leads = state.leads || [];
+  const leads = localLeadRecords();
   if (!leads.length) {
     showToast("当前还没有邮箱可导出");
     return;
@@ -1933,7 +1981,7 @@ function exportLeadCsv() {
 }
 
 function leadEmailList({ subscribedOnly = false } = {}) {
-  const leads = state.leads || [];
+  const leads = localLeadRecords();
   const filtered = subscribedOnly ? leads.filter((lead) => lead.wantsUpdates) : leads;
   return [...new Set(filtered.map((lead) => lead.email).filter(Boolean))];
 }
@@ -2448,6 +2496,36 @@ function sanitizeManualTerm(raw) {
   return safe;
 }
 
+function textWithoutRuby(node) {
+  if (!node) return "";
+  const clone = node.cloneNode(true);
+  if (typeof clone.querySelectorAll === "function") {
+    clone.querySelectorAll("rt").forEach((element) => element.remove());
+  }
+  return clone.textContent || "";
+}
+
+function stripRubyPinyinFromSelectionText(raw) {
+  const text = String(raw || "").normalize("NFKC");
+  if (!/[\u4e00-\u9fff]/u.test(text)) return text;
+  return text.replace(/[^\u4e00-\u9fff0-9]/gu, "");
+}
+
+function selectedTextFromRange(selection, range) {
+  let text = "";
+  try {
+    text = textWithoutRuby(range.cloneContents());
+  } catch {
+    text = "";
+  }
+  return sanitizeManualTerm(stripRubyPinyinFromSelectionText(text || selection?.toString() || ""));
+}
+
+function termFromInlineElement(element) {
+  if (!element) return "";
+  return sanitizeManualTerm(stripRubyPinyinFromSelectionText(element.dataset.term || textWithoutRuby(element)));
+}
+
 function selectedTermLookup(term) {
   const item = itemByTerm(term);
   if (item) {
@@ -2613,7 +2691,7 @@ function hideSelectionToolbar({ clearSelection = true } = {}) {
   selectionToolbar.hidden = true;
 }
 
-function showSelectionToolbar(term, range) {
+function showSelectionToolbar(term, anchor) {
   pendingSelectionText = term;
   selectionTermNode.textContent = term;
   selectionTitleNode.textContent = selectedTermLookup(term) ? "可查询词句" : "选中文本";
@@ -2621,8 +2699,8 @@ function showSelectionToolbar(term, range) {
   selectionDefinitionNode.innerHTML = "";
   selectionSaveButton.disabled = false;
   selectionSaveButton.textContent = selectedTermLookup(term)?.saved ? "已在词句本" : "存入词句本";
-  const passage = document.querySelector(".passage");
-  const rect = range.getBoundingClientRect();
+  const rect = typeof anchor?.getBoundingClientRect === "function" ? anchor.getBoundingClientRect() : anchor;
+  if (!rect) return;
   const left = Math.max(10, Math.min(window.innerWidth - 300, rect.left + rect.width / 2 - 100));
   const top = Math.max(80, rect.top - 72);
   const clampedTop = Math.min(top, window.innerHeight - 120);
@@ -2634,6 +2712,10 @@ function showSelectionToolbar(term, range) {
 function evaluateSelectionForManual() {
   const passage = document.querySelector(".passage");
   const active = document.activeElement;
+  if (Date.now() < selectionInteractionLockUntil && !selectionToolbar.hidden) {
+    return;
+  }
+
   if (selectionToolbarPointerActive || (active && selectionToolbar.contains(active))) {
     return;
   }
@@ -2657,13 +2739,30 @@ function evaluateSelectionForManual() {
     return;
   }
 
-  const term = sanitizeManualTerm(selection.toString());
+  const term = selectedTextFromRange(selection, range);
   if (!term) {
     hideSelectionToolbar();
     return;
   }
 
   showSelectionToolbar(term, range);
+}
+
+function showTappedTermDefinition(event) {
+  const passage = document.querySelector(".passage");
+  const termNode = event.target.closest?.(".inline-term");
+  if (!passage || !termNode || !passage.contains(termNode)) return false;
+
+  const selection = window.getSelection();
+  if (selection && !selection.isCollapsed) return false;
+
+  const term = termFromInlineElement(termNode);
+  if (!term) return false;
+
+  selectionInteractionLockUntil = Date.now() + 450;
+  showSelectionToolbar(term, termNode.getBoundingClientRect());
+  renderSelectionDefinition(term);
+  return true;
 }
 
 function savedItems() {
@@ -2792,15 +2891,15 @@ function highlightTerms(text, article = currentArticle(), paragraphPinyin = "") 
       }
 
       output += state.pinyin
-        ? `<span class="inline-term pinyin-term">${renderRubyTerm(item.term, itemPinyin)}</span>`
-        : `<mark class="inline-term">${escapeHtml(item.term)}</mark>`;
+        ? `<span class="inline-term pinyin-term" data-term="${escapeHtml(item.term)}">${renderRubyTerm(item.term, itemPinyin)}</span>`
+        : `<mark class="inline-term" data-term="${escapeHtml(item.term)}">${escapeHtml(item.term)}</mark>`;
       index += item.term.length;
       continue;
     }
 
     const char = text[index];
     if (state.pinyin && isHanCharacter(char)) {
-      output += `<span class="inline-term pinyin-term">${renderRubyTerm(char, pinyinTokens[pinyinIndex] || "")}</span>`;
+      output += `<span class="inline-term pinyin-term" data-term="${escapeHtml(char)}">${renderRubyTerm(char, pinyinTokens[pinyinIndex] || "")}</span>`;
       pinyinIndex += 1;
     } else {
       output += escapeHtml(char);
@@ -3963,9 +4062,9 @@ function renderRefreshCadenceControls() {
 }
 
 function renderLeadDirectory() {
-  const leads = state.leads || [];
+  const leads = localLeadRecords();
   if (!leads.length) {
-    return `<p class="small">暂无邮箱记录。用户点击“创建免费账户”后会保存到本机名单。</p>`;
+    return `<p class="small">暂无本机邮箱记录。注意：当前静态网页只能看到这个浏览器里保存过的邮箱；要收集所有访客的邮箱，需要接上后端表单或邮件服务。</p>`;
   }
 
   return `
@@ -3990,7 +4089,7 @@ function renderLeadDirectory() {
 }
 
 function renderEmailSignupPanel() {
-  const leads = state.leads || [];
+  const leads = localLeadRecords();
   const subscribed = leadEmailList({ subscribedOnly: true });
   const draftUrl = weeklyEmailDraftUrl();
 
@@ -3998,16 +4097,17 @@ function renderEmailSignupPanel() {
     <section class="panel email-signup-panel">
       <div class="panel-heading-row">
         <h2>电邮名单</h2>
-        <span class="status-pill warn">Mailer not connected</span>
+        <span class="status-pill warn">Owner only · local</span>
       </div>
       <div class="stats-grid mini">
         <div class="stat"><strong>${leads.length}</strong><span>saved emails</span></div>
         <div class="stat"><strong>${subscribed.length}</strong><span>weekly opt-ins</span></div>
       </div>
-      <p class="small">名单目前保存在这个浏览器。自动周报尚未接上邮件服务；正式发送时间建议设为 ${WEEKLY_MAILER_SEND_LABEL}。</p>
+      <p class="small">这个名单只在 owner mode 显示，并且目前只读取本机浏览器保存的资料。自动周报尚未接上邮件服务；正式发送时间建议设为 ${WEEKLY_MAILER_SEND_LABEL}。</p>
       <div class="action-row">
         <button class="secondary-button compact" type="button" data-export-leads>导出CSV</button>
         <button class="secondary-button compact" type="button" data-copy-lead-emails>复制邮箱</button>
+        <button class="secondary-button compact" type="button" data-hide-owner-tools>隐藏名单</button>
         ${
           draftUrl
             ? `<a class="secondary-button compact" href="${escapeHtml(draftUrl)}">打开测试邮件草稿</a>`
@@ -4058,7 +4158,7 @@ function renderProfile() {
       }
     </section>
 
-    ${renderEmailSignupPanel()}
+    ${ownerToolsEnabled() ? renderEmailSignupPanel() : ""}
 
     <section class="panel">
       <h2>新闻更新节奏</h2>
@@ -4296,7 +4396,12 @@ async function checkPipelineHealth() {
 
 document.addEventListener("click", async (event) => {
   const target = event.target.closest("button");
-  if (!target) return;
+  if (!target) {
+    if (showTappedTermDefinition(event)) {
+      event.preventDefault();
+    }
+    return;
+  }
 
   if (target.dataset.cancelSelection) {
     hideSelectionToolbar();
@@ -4332,6 +4437,11 @@ document.addEventListener("click", async (event) => {
 
   if (target.hasAttribute("data-copy-lead-emails")) {
     await copyLeadEmails();
+    return;
+  }
+
+  if (target.hasAttribute("data-hide-owner-tools")) {
+    hideOwnerTools();
     return;
   }
 
@@ -4524,6 +4634,7 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 
+activateOwnerToolsFromUrl();
 trackAnonymousVisit();
 render();
 if (state.pinyin) ensurePinyinEngine();
