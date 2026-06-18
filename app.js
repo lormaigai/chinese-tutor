@@ -2010,17 +2010,33 @@ function weeklyEmailBody() {
   return lines.join("\n");
 }
 
+function weeklyEmailRecipients() {
+  const subscribed = leadEmailList({ subscribedOnly: true });
+  return subscribed.length ? subscribed : leadEmailList();
+}
+
 function weeklyEmailDraftUrl() {
-  const recipients = leadEmailList({ subscribedOnly: true });
-  const fallbackRecipients = recipients.length ? recipients : leadEmailList();
-  if (!fallbackRecipients.length) return "";
+  const recipients = weeklyEmailRecipients();
+  if (!recipients.length) return "";
 
   const params = new URLSearchParams({
-    bcc: fallbackRecipients.join(","),
+    bcc: recipients.join(","),
     subject: weeklyEmailSubject(),
     body: weeklyEmailBody(),
   });
   return `mailto:?${params.toString()}`;
+}
+
+function weeklyEmailClipboardText() {
+  const recipients = weeklyEmailRecipients();
+  if (!recipients.length) return "";
+
+  return [
+    `BCC: ${recipients.join(", ")}`,
+    `Subject: ${weeklyEmailSubject()}`,
+    "",
+    weeklyEmailBody(),
+  ].join("\n");
 }
 
 async function copyLeadEmails() {
@@ -2036,6 +2052,37 @@ async function copyLeadEmails() {
   } catch {
     showToast(emails.join(", "));
   }
+}
+
+async function copyWeeklyEmailDraft({ quiet = false } = {}) {
+  const draft = weeklyEmailClipboardText();
+  if (!draft) {
+    showToast("当前还没有邮箱可发送测试邮件");
+    return false;
+  }
+
+  try {
+    await navigator.clipboard.writeText(draft);
+    if (!quiet) showToast("测试邮件内容已复制");
+    return true;
+  } catch {
+    showToast("无法复制；请使用下方邮件内容手动复制");
+    return false;
+  }
+}
+
+async function openWeeklyEmailDraft() {
+  const draftUrl = weeklyEmailDraftUrl();
+  if (!draftUrl) {
+    showToast("当前还没有邮箱可发送测试邮件");
+    return;
+  }
+
+  await copyWeeklyEmailDraft({ quiet: true });
+  window.location.href = draftUrl;
+  window.setTimeout(() => {
+    showToast("已尝试打开邮件；若没反应，内容已复制");
+  }, 300);
 }
 
 function parseSavedState(raw) {
@@ -4110,10 +4157,23 @@ function renderEmailSignupPanel() {
         <button class="secondary-button compact" type="button" data-hide-owner-tools>隐藏名单</button>
         ${
           draftUrl
-            ? `<a class="secondary-button compact" href="${escapeHtml(draftUrl)}">打开测试邮件草稿</a>`
+            ? `
+              <button class="secondary-button compact" type="button" data-open-weekly-draft>打开测试邮件草稿</button>
+              <button class="secondary-button compact" type="button" data-copy-weekly-draft>复制测试邮件内容</button>
+            `
             : `<button class="secondary-button compact" type="button" disabled>暂无测试邮件</button>`
         }
       </div>
+      ${
+        draftUrl
+          ? `
+            <details class="email-draft-preview">
+              <summary>查看测试邮件内容</summary>
+              <textarea class="notes-input email-draft-textarea" readonly>${escapeHtml(weeklyEmailClipboardText())}</textarea>
+            </details>
+          `
+          : ""
+      }
       ${renderLeadDirectory()}
     </section>
   `;
@@ -4437,6 +4497,16 @@ document.addEventListener("click", async (event) => {
 
   if (target.hasAttribute("data-copy-lead-emails")) {
     await copyLeadEmails();
+    return;
+  }
+
+  if (target.hasAttribute("data-copy-weekly-draft")) {
+    await copyWeeklyEmailDraft();
+    return;
+  }
+
+  if (target.hasAttribute("data-open-weekly-draft")) {
+    await openWeeklyEmailDraft();
     return;
   }
 
