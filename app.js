@@ -7,6 +7,146 @@ const PROFILE_LEAD_ENDPOINT = "";
 const ANONYMOUS_VISITOR_ENDPOINT = "";
 const LOCAL_LEAD_HISTORY_LIMIT = 2000;
 const ANON_VISITOR_STORAGE_KEY = "chinese-tutor-anon-visits-v1";
+const DAILY_ARTICLE_ID = "daily-recent";
+const RECENT_HEADLINE_WINDOW_DAYS = 7;
+const RECENT_HEADLINE_LIMIT = 36;
+const HEADLINE_FEEDS = [
+  {
+    sourceName: "CNA",
+    section: "Top stories",
+    url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml",
+  },
+  {
+    sourceName: "CNA",
+    section: "Singapore",
+    url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=10416",
+  },
+];
+
+const headlineCategories = [
+  {
+    id: "technology",
+    label: "Tech / 科技",
+    keywords: [
+      "ai",
+      "artificial intelligence",
+      "cyber",
+      "data",
+      "digital",
+      "internet",
+      "online",
+      "piracy",
+      "robot",
+      "scam",
+      "tech",
+      "人工智能",
+      "网络",
+      "数码",
+      "数据",
+      "盗版",
+      "诈骗",
+      "科技",
+    ],
+  },
+  {
+    id: "environment",
+    label: "Environment & Food / 环境与食物",
+    keywords: [
+      "climate",
+      "energy",
+      "environment",
+      "flood",
+      "food",
+      "insect",
+      "rain",
+      "sustain",
+      "weather",
+      "气候",
+      "环境",
+      "昆虫",
+      "粮食",
+      "能源",
+      "天气",
+      "食物",
+    ],
+  },
+  {
+    id: "education",
+    label: "Education / 教育",
+    keywords: ["exam", "school", "student", "teacher", "tuition", "university", "教育", "考试", "学生", "学校", "教师"],
+  },
+  {
+    id: "health",
+    label: "Health / 健康",
+    keywords: ["disease", "doctor", "health", "hospital", "mental", "medical", "virus", "健康", "医院", "疾病", "心理", "医疗"],
+  },
+  {
+    id: "livelihood",
+    label: "Jobs, Money & Housing / 民生经济",
+    keywords: [
+      "business",
+      "cost",
+      "economy",
+      "housing",
+      "inflation",
+      "job",
+      "price",
+      "rent",
+      "retrench",
+      "salary",
+      "work",
+      "就业",
+      "工作",
+      "房价",
+      "经济",
+      "裁员",
+      "薪水",
+    ],
+  },
+  {
+    id: "culture",
+    label: "Culture & Lifestyle / 文化生活",
+    keywords: [
+      "arts",
+      "celebrity",
+      "concert",
+      "culture",
+      "entertainment",
+      "film",
+      "lifestyle",
+      "music",
+      "sport",
+      "文化",
+      "电影",
+      "生活",
+      "体育",
+      "演唱会",
+      "娱乐",
+    ],
+  },
+  {
+    id: "society",
+    label: "Society, Law & World / 社会与国际",
+    keywords: [
+      "court",
+      "crime",
+      "election",
+      "government",
+      "law",
+      "police",
+      "politics",
+      "transport",
+      "war",
+      "world",
+      "国际",
+      "法律",
+      "交通",
+      "警方",
+      "社会",
+      "政府",
+    ],
+  },
+];
 
 const topics = [
   { id: "all", label: "全部" },
@@ -1267,12 +1407,27 @@ const articles = [
   },
 ];
 
+const SAFE_ID = /^[a-z0-9-]{3,80}$/i;
+let stateReady = false;
 const state = loadState();
+stateReady = true;
 let timerId = null;
 let deferredInstallPrompt = null;
 let pendingSelectionText = "";
 let signupPromptOpen = false;
 let continueAfterSignup = false;
+let pendingSaveIdAfterSignup = "";
+let profileDraft = {
+  displayName: "",
+  email: "",
+};
+let oralRecorder = null;
+let oralRecordingStream = null;
+let oralRecordingChunks = [];
+let oralRecordingUrl = "";
+let oralRecordingStatus = "idle";
+let oralRecordingSeconds = 0;
+let oralRecordingTimerId = null;
 
 function createSelectionToolbar() {
   const toolbar = document.createElement("div");
@@ -1328,8 +1483,6 @@ function oralAgreementPrompt(prompt) {
 
   return `${statement}。你同意吗？`;
 }
-
-const SAFE_ID = /^[a-z0-9-]{3,80}$/i;
 
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -1461,6 +1614,11 @@ function parsePipeline(raw) {
     message: sanitizeText(raw.message || fallback.message, 160),
     checkedAt: raw.checkedAt === null ? null : sanitizeTimestamp(raw.checkedAt),
   };
+}
+
+function parseHeadlines(raw) {
+  if (!Array.isArray(raw)) return [];
+  return mergeHeadlines(raw.map(normalizeHeadlineRecord).filter(Boolean)).slice(0, RECENT_HEADLINE_LIMIT);
 }
 
 function parseRefreshCadence(value) {
@@ -1617,7 +1775,10 @@ function parseSavedState(raw) {
         example: sanitizeText(item.example || "可在复习时回想该词在语境中的用法。", 420),
         examUse: sanitizeText(item.examUse, 420),
         type: item.type || "manual",
-        articleId: rawArticleId && articles.some((article) => article.id === rawArticleId) ? rawArticleId : "",
+        articleId:
+          rawArticleId && (rawArticleId === DAILY_ARTICLE_ID || articles.some((article) => article.id === rawArticleId))
+            ? rawArticleId
+            : "",
         articleTitle: sanitizeText(item.articleTitle, 120),
       },
       savedAt: sanitizeTimestamp(entry?.savedAt),
@@ -1648,7 +1809,7 @@ function parseReviewState(raw, savedEntries) {
 function loadState() {
   const fallback = {
     tab: "today",
-    articleId: articles[0].id,
+    articleId: DAILY_ARTICLE_ID,
     topicFilter: "all",
     pinyin: false,
     english: false,
@@ -1659,6 +1820,7 @@ function loadState() {
     leads: [],
     timerLeft: 120,
     profile: emptyProfile(),
+    headlines: [],
     pipeline: {
       status: "fallback",
       message: "Prototype article library ready",
@@ -1673,7 +1835,12 @@ function loadState() {
   return {
     ...fallback,
     tab: ["today", "review", "saved", "oral", "profile"].includes(raw.tab) ? raw.tab : fallback.tab,
-    articleId: articles.some((article) => article.id === raw.articleId) ? raw.articleId : fallback.articleId,
+    articleId:
+      raw.articleId === DAILY_ARTICLE_ID || (raw.articleId && raw.articleId === articles[0].id)
+        ? DAILY_ARTICLE_ID
+        : articles.some((article) => article.id === raw.articleId)
+          ? raw.articleId
+          : fallback.articleId,
     topicFilter: topics.some((topic) => topic.id === raw.topicFilter) ? raw.topicFilter : fallback.topicFilter,
     pinyin: typeof raw.pinyin === "boolean" ? raw.pinyin : fallback.pinyin,
     english: typeof raw.english === "boolean" ? raw.english : fallback.english,
@@ -1684,6 +1851,7 @@ function loadState() {
     leads: parseLeadRecords(raw.leads),
     timerLeft: clampInt(raw.timerLeft, 0, 600, fallback.timerLeft),
     profile: parseProfile(raw.profile),
+    headlines: parseHeadlines(raw.headlines),
     pipeline: parsePipeline(raw.pipeline),
   };
 }
@@ -1733,6 +1901,9 @@ function escapeHtml(value) {
 }
 
 function currentArticle() {
+  if (state.articleId === DAILY_ARTICLE_ID) {
+    return dailyRecentArticle() || articles[0];
+  }
   return articles.find((article) => article.id === state.articleId) || articles[0];
 }
 
@@ -1741,7 +1912,7 @@ function hasProfile() {
 }
 
 function isProfileRequiredForReading() {
-  return !hasProfile() && state.tab === "today";
+  return false;
 }
 
 function profileDisplayName() {
@@ -1749,9 +1920,38 @@ function profileDisplayName() {
   return state.profile.displayName || state.profile.email.split("@")[0];
 }
 
-function openSignupPrompt(shouldContinue = false) {
+function seedProfileDraft() {
+  profileDraft = {
+    displayName: state.profile?.displayName || "",
+    email: state.profile?.email || "",
+  };
+}
+
+function syncProfileDraftFromForm(form) {
+  if (!form) return;
+  profileDraft = {
+    displayName: form.querySelector("[data-profile-name]")?.value || "",
+    email: form.querySelector("[data-profile-email]")?.value || "",
+  };
+}
+
+function profileFormValue(profile, key, modal) {
+  if (!modal) return profile[key] || "";
+  return profileDraft[key] || profile[key] || "";
+}
+
+function isEditableElement(element) {
+  return Boolean(
+    element &&
+      (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT" || element.isContentEditable),
+  );
+}
+
+function openSignupPrompt(shouldContinue = false, pendingSaveId = "") {
+  seedProfileDraft();
   signupPromptOpen = true;
   continueAfterSignup = shouldContinue;
+  pendingSaveIdAfterSignup = pendingSaveId;
   render();
   window.setTimeout(() => document.querySelector(".signup-modal [data-profile-email]")?.focus(), 0);
 }
@@ -1759,6 +1959,8 @@ function openSignupPrompt(shouldContinue = false) {
 function closeSignupPrompt() {
   signupPromptOpen = false;
   continueAfterSignup = false;
+  pendingSaveIdAfterSignup = "";
+  seedProfileDraft();
   render();
 }
 
@@ -1768,6 +1970,13 @@ function filteredArticles() {
 }
 
 function setArticle(id) {
+  if (id === DAILY_ARTICLE_ID) {
+    state.articleId = DAILY_ARTICLE_ID;
+    state.timerLeft = 120;
+    persist();
+    render();
+    return;
+  }
   if (!articles.some((article) => article.id === id)) return;
   state.articleId = id;
   state.timerLeft = 120;
@@ -1776,11 +1985,6 @@ function setArticle(id) {
 }
 
 function nextArticle() {
-  if (!hasProfile()) {
-    openSignupPrompt(true);
-    return;
-  }
-
   const list = filteredArticles();
   const currentIndex = Math.max(0, list.findIndex((article) => article.id === state.articleId));
   const next = list[(currentIndex + 1) % list.length];
@@ -1789,18 +1993,13 @@ function nextArticle() {
 }
 
 function saveProfileFromForm(form) {
+  syncProfileDraftFromForm(form);
   const email = sanitizeEmail(form?.querySelector("[data-profile-email]")?.value);
   const displayName = sanitizeText(form?.querySelector("[data-profile-name]")?.value, 80);
   const wantsUpdates = Boolean(form?.querySelector("[data-profile-updates]")?.checked);
-  const consent = form?.querySelector("[data-profile-consent]");
 
   if (!email) {
     showToast("请输入有效的电子邮件");
-    return;
-  }
-
-  if (consent && !consent.checked) {
-    showToast("请先同意创建免费账户");
     return;
   }
 
@@ -1825,8 +2024,11 @@ function saveProfileFromForm(form) {
 
   persist();
   const shouldContinue = continueAfterSignup;
+  const pendingSaveId = pendingSaveIdAfterSignup;
   signupPromptOpen = false;
   continueAfterSignup = false;
+  pendingSaveIdAfterSignup = "";
+  seedProfileDraft();
 
   if (PROFILE_LEAD_ENDPOINT && profileEmailCaptureEnabled()) {
     sendProfileLead({
@@ -1836,6 +2038,12 @@ function saveProfileFromForm(form) {
       refreshCadence: parseRefreshCadence(state.profile?.refreshCadence),
       createdAt: new Date(state.profile?.createdAt || Date.now()).toISOString(),
     }).catch(() => {});
+  }
+
+  if (pendingSaveId) {
+    toggleSave(pendingSaveId);
+    showToast("账户已创建，词句已加入词句本");
+    return;
   }
 
   if (shouldContinue) {
@@ -1902,7 +2110,13 @@ function setTopicFilter(topicId) {
 }
 
 function allLearnableItems() {
-  return articles.flatMap((article) => [
+  const libraryArticles = [...articles];
+  const daily = stateReady ? dailyRecentArticle() : null;
+  if (daily) {
+    libraryArticles.unshift(daily);
+  }
+
+  return libraryArticles.flatMap((article) => [
     ...article.vocab.map((item) => ({ ...item, articleId: article.id, articleTitle: article.title })),
     ...article.phrases.map((item) => ({ ...item, articleId: article.id, articleTitle: article.title })),
   ]);
@@ -1910,6 +2124,10 @@ function allLearnableItems() {
 
 function itemById(id) {
   return allLearnableItems().find((item) => item.id === id);
+}
+
+function itemByIdOrSaved(id) {
+  return itemById(id) || state.saved[id]?.item || null;
 }
 
 function itemByTerm(term) {
@@ -1999,9 +2217,11 @@ function addManualSelectionToSaved() {
   render();
 }
 
-function hideSelectionToolbar() {
+function hideSelectionToolbar({ clearSelection = true } = {}) {
   pendingSelectionText = "";
-  window.getSelection()?.removeAllRanges();
+  if (clearSelection) {
+    window.getSelection()?.removeAllRanges();
+  }
   selectionToolbar.hidden = true;
 }
 
@@ -2020,6 +2240,12 @@ function showSelectionToolbar(term, range) {
 
 function evaluateSelectionForManual() {
   const passage = document.querySelector(".passage");
+  const active = document.activeElement;
+  if (isEditableElement(active)) {
+    hideSelectionToolbar({ clearSelection: false });
+    return;
+  }
+
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || !passage) {
     hideSelectionToolbar();
@@ -2201,6 +2427,318 @@ function sanitizeSafeUrl(url) {
   }
 }
 
+function headlineCategoryLabel(topicId) {
+  return headlineCategories.find((category) => category.id === topicId)?.label || "Wild card / 随机话题";
+}
+
+function classifyHeadline(title) {
+  const normalized = String(title || "").toLowerCase();
+  let bestMatch = "society";
+  let bestScore = 0;
+
+  for (const category of headlineCategories) {
+    const score = category.keywords.reduce((count, keyword) => {
+      return normalized.includes(keyword.toLowerCase()) ? count + 1 : count;
+    }, 0);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = category.id;
+    }
+  }
+
+  return bestMatch;
+}
+
+function headlineTimestamp(value) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function dateKeyFromTimestamp(timestamp) {
+  if (!timestamp) return "";
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function isRecentHeadlineDate(value) {
+  const timestamp = headlineTimestamp(value);
+  if (!timestamp) return false;
+
+  const now = Date.now();
+  const min = now - RECENT_HEADLINE_WINDOW_DAYS * DAY;
+  return timestamp >= min && timestamp <= now + DAY;
+}
+
+function hashText(value) {
+  let hash = 2166136261;
+  for (const char of String(value || "")) {
+    hash ^= char.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash;
+}
+
+function normalizeHeadlineRecord(raw) {
+  if (!isRecord(raw)) return null;
+
+  const sourceTitle = sanitizeText(raw.sourceTitle || raw.title, 180);
+  const sourceUrl = sanitizeSafeUrl(raw.sourceUrl || raw.url);
+  const sourceDate = sanitizeDateString(raw.sourceDate) || dateKeyFromTimestamp(headlineTimestamp(raw.publishedAt));
+  if (!sourceTitle || sourceUrl === "javascript:void(0)" || !sourceDate) return null;
+
+  const topicId = headlineCategories.some((category) => category.id === raw.topicId)
+    ? raw.topicId
+    : classifyHeadline(sourceTitle);
+
+  return {
+    id: sanitizeActionId(raw.id) || `headline-${Math.abs(hashText(`${sourceTitle}|${sourceUrl}`)).toString(36)}`,
+    topicId,
+    topicLabel: raw.topicLabel ? sanitizeText(raw.topicLabel, 80) : headlineCategoryLabel(topicId),
+    sourceName: sanitizeText(raw.sourceName || "News", 80),
+    sourceTitle,
+    sourceUrl,
+    sourceDate,
+    sourceSnippet: sanitizeText(raw.sourceSnippet || raw.section || "Recent headline", 180),
+    section: sanitizeText(raw.section || "", 80),
+  };
+}
+
+function mergeHeadlines(headlines) {
+  const map = new Map();
+  for (const headline of headlines) {
+    if (!headline) continue;
+    const key = `${headline.sourceUrl}|${headline.sourceTitle.toLowerCase()}`;
+    if (!map.has(key)) map.set(key, headline);
+  }
+
+  return [...map.values()].sort((a, b) => {
+    const dateDiff = headlineTimestamp(b.sourceDate) - headlineTimestamp(a.sourceDate);
+    if (dateDiff) return dateDiff;
+    return a.sourceTitle.localeCompare(b.sourceTitle);
+  });
+}
+
+function builtInRecentHeadlines() {
+  return articles
+    .filter((article) => isRecentHeadlineDate(article.sourceDate))
+    .map((article) =>
+      normalizeHeadlineRecord({
+        id: `seed-${article.id}`,
+        topicId: article.topicId,
+        topicLabel: headlineCategoryLabel(article.topicId),
+        sourceName: article.sourceName,
+        sourceTitle: article.sourceTitle,
+        sourceUrl: article.sourceUrl,
+        sourceDate: article.sourceDate,
+        sourceSnippet: article.sourceSnippet,
+        section: "Built-in practice source",
+      }),
+    )
+    .filter(Boolean);
+}
+
+function extractXmlText(node, tagNames) {
+  for (const tagName of tagNames) {
+    const match = node.getElementsByTagName(tagName)[0];
+    const text = sanitizeText(match?.textContent, 220);
+    if (text) return text;
+  }
+  return "";
+}
+
+function extractXmlLink(node) {
+  const linkNode = node.getElementsByTagName("link")[0];
+  const href = linkNode?.getAttribute("href");
+  return sanitizeText(href || linkNode?.textContent, 300);
+}
+
+function parseFeedXml(xml, feed) {
+  const document = new DOMParser().parseFromString(xml, "application/xml");
+  if (document.querySelector("parsererror")) return [];
+
+  const items = [...document.getElementsByTagName("item"), ...document.getElementsByTagName("entry")];
+  return items
+    .map((item) => {
+      const sourceTitle = extractXmlText(item, ["title"]);
+      const sourceUrl = extractXmlLink(item);
+      const publishedAt = extractXmlText(item, ["pubDate", "published", "updated", "dc:date"]);
+      const sourceSnippet = extractXmlText(item, ["description", "summary"]);
+      return normalizeHeadlineRecord({
+        sourceName: feed.sourceName,
+        sourceTitle,
+        sourceUrl,
+        sourceDate: dateKeyFromTimestamp(headlineTimestamp(publishedAt)),
+        publishedAt,
+        sourceSnippet,
+        section: feed.section,
+      });
+    })
+    .filter((headline) => headline && isRecentHeadlineDate(headline.sourceDate));
+}
+
+async function fetchFeedHeadlines(feed) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 4500);
+
+  try {
+    const response = await fetch(feed.url, { signal: controller.signal });
+    if (!response.ok) return [];
+    const xml = await response.text();
+    return parseFeedXml(xml, feed);
+  } catch {
+    return [];
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+async function loadRecentHeadlines() {
+  const results = await Promise.allSettled(HEADLINE_FEEDS.map(fetchFeedHeadlines));
+  const fetched = results.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
+  return mergeHeadlines([...fetched, ...builtInRecentHeadlines()])
+    .filter((headline) => isRecentHeadlineDate(headline.sourceDate))
+    .slice(0, RECENT_HEADLINE_LIMIT);
+}
+
+function recentHeadlinePool() {
+  const live = parseHeadlines(state.headlines).filter((headline) => isRecentHeadlineDate(headline.sourceDate));
+  return live.length ? live : builtInRecentHeadlines();
+}
+
+function headlineOfTheDay() {
+  const pool = recentHeadlinePool();
+  if (!pool.length) return null;
+
+  const seed = Math.abs(hashText(singaporeDateKey()));
+  return pool[seed % pool.length];
+}
+
+function headlineGroups() {
+  const groups = new Map(
+    headlineCategories.map((category) => [
+      category.id,
+      {
+        ...category,
+        items: [],
+      },
+    ]),
+  );
+
+  for (const headline of recentHeadlinePool()) {
+    const group = groups.get(headline.topicId) || groups.get("society");
+    group.items.push(headline);
+  }
+
+  return [...groups.values()].filter((group) => group.items.length);
+}
+
+function topicLabelZh(topicId) {
+  return topics.find((topic) => topic.id === topicId)?.label || "社会";
+}
+
+function headlineTopicNoun(topicId) {
+  const map = {
+    technology: "数码生活",
+    environment: "环境与食物安全",
+    education: "教育与成长",
+    health: "公共健康",
+    livelihood: "民生经济",
+    culture: "文化生活",
+    society: "社会责任",
+  };
+  return map[topicId] || "社会课题";
+}
+
+function headlineChineseTitle(headline) {
+  const map = {
+    technology: "数码时代的新课题：便利、风险与责任",
+    environment: "从近期新闻看可持续生活的取舍",
+    education: "学习不只在课堂：社会变化给学生的提醒",
+    health: "健康不是个人小事：公共意识为什么重要",
+    livelihood: "民生压力下，我们该如何取得平衡？",
+    culture: "文化生活如何影响我们的身份认同？",
+    society: "社会事件背后的公民责任",
+  };
+  return map[headline.topicId] || "近期新闻带来的思考";
+}
+
+function headlineChineseSummary(headline) {
+  const topic = headlineTopicNoun(headline.topicId);
+  return `这则${headline.sourceName}近期新闻围绕“${topic}”展开。练习时不需要背原文，而要学会用中文概括现象、分析影响，并联系新加坡社会提出自己的看法。`;
+}
+
+function dailyRecentArticle() {
+  const headline = headlineOfTheDay();
+  if (!headline) return null;
+
+  const hash = Math.abs(hashText(`${headline.sourceTitle}|${headline.sourceDate}`)).toString(36).slice(0, 8);
+  const topic = headlineTopicNoun(headline.topicId);
+  const topicLabel = topicLabelZh(headline.topicId);
+  const title = headlineChineseTitle(headline);
+  const baseId = `daily-${hash}`;
+  const summary = headlineChineseSummary(headline);
+
+  return {
+    id: DAILY_ARTICLE_ID,
+    topicId: headline.topicId,
+    topicLabel,
+    title,
+    sourceName: headline.sourceName,
+    sourceTitle: headline.sourceTitle,
+    sourceUrl: headline.sourceUrl,
+    sourceDate: headline.sourceDate,
+    sourceSnippet: `${summary} 源文标题：${headline.sourceTitle}`,
+    readingTime: "6 min",
+    tags: ["近期新闻", topic, "口试素材", "原创中文练习"],
+    paragraphs: [
+      {
+        zh:
+          `近七天的新闻不断提醒我们，${topic}并不是离学生很远的话题。新闻表面上讲的是一个具体事件，` +
+          "但背后往往牵涉个人选择、社会制度和公共利益。准备高级华文口试时，我们不能只复述新闻标题，而要抓住现象，说明它为什么值得关注。",
+        py: "",
+        en: "Use the news as a topic anchor, then explain why the issue matters.",
+      },
+      {
+        zh:
+          "从学生的角度来看，这类新闻能训练我们的信息素养。面对新消息，我们需要分辨事实和观点，比较不同群体的立场，也要思考短期便利和长期后果之间的取舍。这样一来，阅读新闻就不只是知道发生了什么，更是学习如何有条理地表达看法。",
+        py: "",
+        en: "The paragraph turns a news item into exam-ready reasoning.",
+      },
+      {
+        zh:
+          `我认为，面对${topic}相关课题，社会不能只依靠单一做法。政府可以制定清楚规则，学校可以引导学生讨论真实案例，个人也要培养风险意识和责任感。` +
+          "只有多方配合，我们才能在变化中保持判断力，也能把新闻素材转化成有深度的中文表达。",
+        py: "",
+        en: "Good conclusion: multi-party effort and judgement.",
+      },
+    ],
+    vocab: [
+      vocab(`${baseId}-xianxiang`, "现象", "xian xiang", "phenomenon", "表面上看到的情况或趋势。", "我们要先概括新闻中的现象，再分析它的影响。", "口试开头可用：这个现象反映了社会正在面对新的挑战。"),
+      vocab(`${baseId}-qushe`, "取舍", "qu she", "trade-off", "在不同利益之间做选择。", "科技带来便利，但也涉及隐私与安全的取舍。", "议论文常用：任何政策都难免有取舍。"),
+      vocab(`${baseId}-gonggongliyi`, "公共利益", "gong gong li yi", "public interest", "对社会大众有益的整体利益。", "个人自由有时需要和公共利益取得平衡。", "社会责任题可用：公共利益不能被忽视。"),
+      vocab(`${baseId}-xinxiyang`, "信息素养", "xin xi su yang", "information literacy", "判断、理解和使用信息的能力。", "学生需要提高信息素养，才不会轻易被误导。", "数码时代、假新闻、数据安全题通用。"),
+      vocab(`${baseId}-fengxian`, "风险意识", "feng xian yi shi", "risk awareness", "能预先想到可能出现的问题。", "培养风险意识有助于我们做出更负责任的决定。", "可用于建议段：学校应通过真实案例培养学生的风险意识。"),
+    ],
+    phrases: [
+      phrase(`${baseId}-chengyu`, "成语", "未雨绸缪", "wei yu chou mou", "事情发生前先做好准备。", "面对快速变化的社会，我们必须未雨绸缪。"),
+      phrase(`${baseId}-suyu`, "俗语", "凡事有利也有弊", "fan shi you li ye you bi", "任何事情通常同时有好处和坏处。", "讨论新闻时要看到利弊，不能只从一个角度判断。"),
+      phrase(`${baseId}-haoci`, "好词好句", "把新闻转化为思考，把思考转化为表达", "ba xin wen zhuan hua wei si kao", "强调阅读新闻后要形成自己的观点。", "高级华文学习不只是看新闻，而是把新闻转化为思考，把思考转化为表达。"),
+    ],
+    oral: oralPack(
+      `你认为学生关注${topic}类新闻有必要吗？`,
+      `近期新闻显示，${topic}与社会生活密切相关，也会影响年轻人的判断。`,
+      "我认为有必要，因为新闻能帮助学生理解社会，也能训练表达和思辨能力。",
+      "学生通过新闻可以学习分析利弊、分辨事实与观点，并积累口试和作文素材。",
+      "学校可每周安排新闻讨论，让学生用PEEL结构表达观点，并联系自己的生活经验。",
+      [
+        ["为什么不能只背新闻内容？", "因为口试考查的是观点和表达，不是背诵新闻。学生必须解释新闻背后的意义。"],
+        ["学生怎样判断新闻是否可靠？", "可以比较不同来源，留意数据和专家说法，也要分清事实与个人意见。"],
+        ["新闻阅读对写作有什么帮助？", "它能提供真实例子和高级词汇，让作文论点更具体。"],
+      ],
+    ),
+  };
+}
+
 function recommendedArticles() {
   const current = currentArticle();
   const picks = [current];
@@ -2250,6 +2788,7 @@ function render() {
   });
 
   if (isProfileRequiredForReading() && !signupPromptOpen) {
+    seedProfileDraft();
     signupPromptOpen = true;
     continueAfterSignup = false;
   }
@@ -2344,6 +2883,8 @@ function renderToday() {
       </div>
     </section>
 
+    ${renderHeadlineExposure()}
+
     <section class="panel">
       <h2>今日词汇</h2>
       <div class="grid two">
@@ -2386,6 +2927,70 @@ function renderToday() {
         <button class="secondary-button" type="button" data-next-article>再读一篇</button>
       </div>
     </section>
+  `;
+}
+
+function renderHeadlineExposure() {
+  const groups = headlineGroups()
+    .map((group) => ({
+      ...group,
+      items: group.items.slice(0, 5),
+    }))
+    .filter((group) => group.items.length);
+
+  if (!groups.length) return "";
+
+  return `
+    <section class="panel headline-panel">
+      <details class="recent-headlines">
+        <summary>更多近期题材（过去${RECENT_HEADLINE_WINDOW_DAYS}天）</summary>
+        <p class="small">这些不是新闻简报，而是额外中文阅读素材：每条都附上源文标题、原创中文摘要和原文链接。</p>
+        <div class="headline-groups">
+          ${groups
+            .map(
+              (group) => `
+                <section class="headline-group">
+                  <div class="headline-group-title">
+                    <h3>${escapeHtml(topicLabelZh(group.id))}</h3>
+                    <span class="small">${group.items.length}</span>
+                  </div>
+                  <div class="headline-list">
+                    ${group.items.map(renderCompactHeadline).join("")}
+                  </div>
+                </section>
+              `,
+            )
+            .join("")}
+        </div>
+      </details>
+    </section>
+  `;
+}
+
+function renderFeaturedHeadline(headline) {
+  const sourceMeta = `${headline.sourceDate} · ${headline.sourceName} · ${headline.section || "recent headline"}`;
+  return `
+    <article class="headline-feature">
+      <div>
+        <span class="chip warm">${escapeHtml(headline.topicLabel)}</span>
+        <h3>${escapeHtml(headline.sourceTitle)}</h3>
+        <p class="small">${escapeHtml(sourceMeta)}</p>
+      </div>
+      <a class="text-link" href="${sanitizeSafeUrl(headline.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>
+    </article>
+  `;
+}
+
+function renderCompactHeadline(headline) {
+  return `
+    <article class="headline-link">
+      <div>
+        <span>${escapeHtml(headlineChineseSummary(headline))}</span>
+        <small>源文标题：${escapeHtml(headline.sourceTitle)}</small>
+        <small>${escapeHtml(headline.sourceDate)} · ${escapeHtml(headline.sourceName)}</small>
+      </div>
+      <a class="text-link" href="${sanitizeSafeUrl(headline.sourceUrl)}" target="_blank" rel="noreferrer">打开源文</a>
+    </article>
   `;
 }
 
@@ -2593,6 +3198,96 @@ function renderSavedCard(item) {
   `;
 }
 
+function excerptSentence(text, maxLength = 96) {
+  const cleaned = sanitizeText(text, maxLength * 2).replace(/\s+/g, "");
+  if (!cleaned) return "";
+  const sentence = cleaned.split(/[。！？!?]/).find(Boolean) || cleaned;
+  return sentence.length > maxLength ? `${sentence.slice(0, maxLength)}…` : sentence;
+}
+
+function buildPeelAnswer(article) {
+  const prompt = oralAgreementPrompt(article.oral?.prompt);
+  const outline = article.oral?.outline || [];
+  const stance = outline.find(([label]) => label === "立场")?.[1] || `我同意这个观点，因为它和${article.topicLabel}息息相关。`;
+  const reason = outline.find(([label]) => label === "理由")?.[1] || "这个课题会影响个人选择和社会发展。";
+  const suggestion = outline.find(([label]) => label === "建议")?.[1] || "我们应该从个人、学校和社会三个层面采取行动。";
+  const evidenceOne = excerptSentence(article.paragraphs?.[0]?.zh || article.sourceSnippet);
+  const evidenceTwo = excerptSentence(article.paragraphs?.[1]?.zh || article.sourceSnippet);
+  const evidenceThree = excerptSentence(article.paragraphs?.[2]?.zh || suggestion);
+
+  return {
+    prompt,
+    stance,
+    paragraphs: [
+      {
+        point: `首先，${reason}`,
+        evidence: `材料提到，${evidenceOne}`,
+        explanation:
+          "这说明我们不能只看表面现象，而要分析它对学生、家庭或社会造成的实际影响。把材料内容和现实生活联系起来，论点才会更有说服力。",
+        link: `因此，这一点支持我的立场：${stance}`,
+      },
+      {
+        point: `其次，这个课题也涉及${article.topicLabel}中的取舍与责任。`,
+        evidence: `材料也指出，${evidenceTwo}`,
+        explanation:
+          "这提醒我们，任何社会课题往往都有利弊。如果只强调好处或坏处，回答会显得片面；更好的做法是说明不同群体会受到什么影响。",
+        link: `所以，回答“${prompt}”时，我会强调必须兼顾个人需要和社会责任。`,
+      },
+      {
+        point: "最后，解决问题不能只靠口号，还需要具体做法。",
+        evidence: evidenceThree ? `材料可延伸出这一点：${evidenceThree}` : `我的建议是：${suggestion}`,
+        explanation:
+          "政府、学校、家庭和个人都可以承担一部分责任。这样回答不但能提出看法，也能展示解决问题的能力，符合口头报告对思考深度的要求。",
+        link: `总的来说，${stance}，因为这能让社会在面对变化时更有准备。`,
+      },
+    ],
+  };
+}
+
+function renderPeelAnswer(article) {
+  const answer = buildPeelAnswer(article);
+  return `
+    <section class="panel">
+      <details class="answer-dropdown">
+        <summary>Recommended oral answer / 推荐口头答案</summary>
+        <div class="peel-answer">
+          <p class="example"><strong>立场：</strong>${escapeHtml(answer.stance)}</p>
+          ${answer.paragraphs
+            .map(
+              (paragraph, index) => `
+                <article class="peel-card">
+                  <h3>PEEL ${index + 1}</h3>
+                  <p><strong>Point 论点：</strong>${escapeHtml(paragraph.point)}</p>
+                  <p><strong>Evidence 论据：</strong>${escapeHtml(paragraph.evidence)}</p>
+                  <p><strong>Explanation 说明：</strong>${escapeHtml(paragraph.explanation)}</p>
+                  <p><strong>Link 点题：</strong>${escapeHtml(paragraph.link)}</p>
+                </article>
+              `,
+            )
+            .join("")}
+        </div>
+      </details>
+    </section>
+  `;
+}
+
+function renderOralRecorderControls() {
+  const isRecording = oralRecordingStatus === "recording";
+  return `
+    <div class="recorder-row">
+      <span class="status-pill ${isRecording ? "warn" : ""}">${isRecording ? `Recording ${formatTimer(oralRecordingSeconds)}` : "Recorder ready"}</span>
+      <button class="secondary-button" type="button" data-recorder="start" ${isRecording ? "disabled" : ""}>Record</button>
+      <button class="secondary-button" type="button" data-recorder="stop" ${isRecording ? "" : "disabled"}>Stop</button>
+      ${oralRecordingUrl ? `<button class="secondary-button" type="button" data-recorder="clear">Clear</button>` : ""}
+    </div>
+    ${
+      oralRecordingUrl
+        ? `<audio class="recording-player" controls src="${escapeHtml(oralRecordingUrl)}"></audio>`
+        : ""
+    }
+  `;
+}
+
 function renderOral() {
   const article = currentArticle();
   const prompt = oralAgreementPrompt(article.oral?.prompt);
@@ -2605,7 +3300,10 @@ function renderOral() {
         <button class="primary-button" type="button" data-timer="start">开始</button>
         <button class="secondary-button" type="button" data-timer="reset">重置</button>
       </div>
+      ${renderOralRecorderControls()}
     </section>
+
+    ${renderPeelAnswer(article)}
 
     <section class="panel">
       <h2>报告框架</h2>
@@ -2644,50 +3342,48 @@ function renderOral() {
 
 function renderProfileForm({ modal = false } = {}) {
   const profile = state.profile || emptyProfile();
-  const needsConsent = modal || !hasProfile();
-  const buttonLabel = hasProfile() ? "保存账户" : "创建免费账户";
+  const displayName = profileFormValue(profile, "displayName", modal);
+  const email = profileFormValue(profile, "email", modal);
+  const buttonLabel = hasProfile() ? "Save account / 保存账户" : "Create free account / 创建免费账户";
 
   return `
-    <div class="profile-form" data-profile-form>
+    <form class="profile-form" data-profile-form autocomplete="on" novalidate>
+      <div class="signup-steps">
+        <p><strong>1.</strong> Enter name and email / 输入名字和邮箱</p>
+        <p><strong>2.</strong> Save words to your word bank / 把词句存进词句本</p>
+        <p><strong>3.</strong> Get weekly vocab email if selected / 选择后每周接收词汇复习</p>
+      </div>
       <label class="profile-field">
-        <span>名字</span>
-        <input class="profile-input" data-profile-name autocomplete="name" maxlength="80" placeholder="可选" value="${escapeHtml(profile.displayName)}" />
+        <span>Name / 名字</span>
+        <input class="profile-input" type="text" name="name" data-profile-name autocomplete="name" maxlength="80" placeholder="Optional / 可选" value="${escapeHtml(displayName)}" />
       </label>
       <label class="profile-field">
-        <span>电子邮件</span>
-        <input class="profile-input" data-profile-email autocomplete="email" inputmode="email" maxlength="254" placeholder="you@example.com" value="${escapeHtml(profile.email)}" />
+        <span>Email address / 电子邮件</span>
+        <input class="profile-input" type="email" name="email" data-profile-email autocomplete="email" inputmode="email" maxlength="254" placeholder="you@example.com" value="${escapeHtml(email)}" />
       </label>
-      ${needsConsent ? `
-        <label class="checkbox-row">
-          <input type="checkbox" data-profile-consent />
-          <span>我同意用这个邮箱创建免费学习账户。</span>
-        </label>
-      ` : ""}
       <label class="checkbox-row">
         <input type="checkbox" data-profile-updates ${profile.wantsUpdates ? "checked" : ""} />
-        <span>接收新文章提醒和学习更新。</span>
+        <span>Email me the vocabulary I learned each week. / 每周把我学过的词汇电邮给我。</span>
       </label>
-      <p class="privacy-note">默认仅把资料保存在本机浏览器。若你在源码中配置回传端点，创建免费账户时会同步提交姓名与邮箱。</p>
+      <p class="privacy-note">By default, the word bank stays in this browser. / 默认词句本保存在本机浏览器。</p>
       <div class="action-row">
         ${modal ? "" : `<button class="secondary-button" type="button" data-export-leads>导出用户列表（CSV）</button>`}
-        <button class="primary-button" type="button" data-create-profile>${buttonLabel}</button>
-        ${modal ? `<button class="secondary-button" type="button" data-close-signup>稍后</button>` : ""}
+        <button class="primary-button" type="submit" data-create-profile>${buttonLabel}</button>
+        ${modal ? `<button class="secondary-button" type="button" data-close-signup>稍后 Later</button>` : ""}
       </div>
       ${modal ? "" : renderLeadDirectory()}
-    </div>
+    </form>
   `;
 }
 
 function renderSignupModal() {
   if (!signupPromptOpen) return "";
-  const requireAccount = isProfileRequiredForReading();
   return `
     <div class="modal-backdrop" data-signup-modal>
-      <section class="signup-modal ${requireAccount ? "signup-modal--required" : ""}" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
-        <span class="chip warm">Free profile</span>
-        ${requireAccount ? '<p class="small">Please add your email before reading.</p>' : ""}
-        <h2 id="signupTitle">创建免费账户继续读下一篇</h2>
-        <p class="small">用电子邮件保存学习档案、更新节奏和新文章提醒偏好。</p>
+      <section class="signup-modal" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
+        <span class="chip warm">Word bank profile</span>
+        <h2 id="signupTitle">Create a profile to save this word / 创建档案保存词句</h2>
+        <p class="small">Your word bank can be saved here, and you can choose to receive a weekly email of vocabulary you learned. / 词句本会保存在这里，也可以选择每周电邮复习词汇。</p>
         ${renderProfileForm({ modal: true })}
       </section>
     </div>
@@ -2845,6 +3541,11 @@ function toggleSave(id) {
   const item = itemByIdOrSaved(safeId);
   if (!item) return;
 
+  if (!hasProfile() && !state.saved[safeId]) {
+    openSignupPrompt(false, safeId);
+    return;
+  }
+
   if (state.saved[safeId]) {
     delete state.saved[safeId];
     delete state.reviews[safeId];
@@ -2895,28 +3596,111 @@ function startTimer() {
   }, 1000);
 }
 
-async function checkPipelineHealth() {
-  const rssUrl = "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=10416";
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 3500);
+function stopOralRecordingTimer() {
+  window.clearInterval(oralRecordingTimerId);
+  oralRecordingTimerId = null;
+}
+
+function stopOralRecordingStream() {
+  if (!oralRecordingStream) return;
+  oralRecordingStream.getTracks().forEach((track) => track.stop());
+  oralRecordingStream = null;
+}
+
+async function startOralRecording() {
+  if (oralRecordingStatus === "recording") return;
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    showToast("This browser cannot record audio.");
+    return;
+  }
+
   try {
-    const response = await fetch(rssUrl, { signal: controller.signal });
-    if (!response.ok) throw new Error("RSS unavailable");
+    if (oralRecordingUrl) {
+      URL.revokeObjectURL(oralRecordingUrl);
+      oralRecordingUrl = "";
+    }
+
+    oralRecordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    oralRecordingChunks = [];
+    oralRecorder = new MediaRecorder(oralRecordingStream);
+    oralRecordingStatus = "recording";
+    oralRecordingSeconds = 0;
+
+    oralRecorder.addEventListener("dataavailable", (event) => {
+      if (event.data?.size) oralRecordingChunks.push(event.data);
+    });
+
+    oralRecorder.addEventListener("stop", () => {
+      stopOralRecordingTimer();
+      stopOralRecordingStream();
+      oralRecordingStatus = "idle";
+      if (oralRecordingChunks.length) {
+        const blob = new Blob(oralRecordingChunks, { type: oralRecorder.mimeType || "audio/webm" });
+        oralRecordingUrl = URL.createObjectURL(blob);
+      }
+      oralRecorder = null;
+      if (state.tab === "oral") render();
+      showToast("Recording ready for playback");
+    });
+
+    oralRecorder.start();
+    oralRecordingTimerId = window.setInterval(() => {
+      oralRecordingSeconds += 1;
+      if (state.tab === "oral") render();
+    }, 1000);
+    render();
+  } catch {
+    oralRecordingStatus = "idle";
+    stopOralRecordingTimer();
+    stopOralRecordingStream();
+    oralRecorder = null;
+    showToast("Microphone permission was not granted.");
+  }
+}
+
+function stopOralRecording() {
+  if (oralRecorder && oralRecordingStatus === "recording") {
+    oralRecorder.stop();
+  }
+}
+
+function clearOralRecording() {
+  if (oralRecordingStatus === "recording") stopOralRecording();
+  if (oralRecordingUrl) {
+    URL.revokeObjectURL(oralRecordingUrl);
+  }
+  oralRecordingUrl = "";
+  oralRecordingChunks = [];
+  oralRecordingSeconds = 0;
+  render();
+}
+
+async function checkPipelineHealth() {
+  try {
+    const headlines = await loadRecentHeadlines();
+    state.headlines = headlines;
+    if (!headlines.length) throw new Error("No recent headlines available");
+
+    const liveCount = headlines.filter((headline) => headline.section !== "Built-in practice source").length;
     state.pipeline = {
-      status: "live",
-      message: "RSS metadata reachable",
+      status: liveCount ? "live" : "fallback",
+      message: liveCount
+        ? `${headlines.length} recent headlines loaded`
+        : `${headlines.length} recent built-in headline links ready`,
       checkedAt: Date.now(),
     };
   } catch {
+    state.headlines = builtInRecentHeadlines();
     state.pipeline = {
       status: "fallback",
-      message: "Using built-in article library",
+      message: state.headlines.length
+        ? `${state.headlines.length} recent built-in headline links ready`
+        : "Using built-in article library",
       checkedAt: Date.now(),
     };
   } finally {
-    window.clearTimeout(timeout);
     persist();
-    if (state.tab === "profile") render();
+    if (state.tab === "profile" || state.tab === "today") render();
   }
 }
 
@@ -2941,6 +3725,7 @@ document.addEventListener("click", async (event) => {
   }
 
   if (target.hasAttribute("data-create-profile")) {
+    event.preventDefault();
     saveProfileFromForm(target.closest("[data-profile-form]"));
     return;
   }
@@ -3054,8 +3839,23 @@ document.addEventListener("click", async (event) => {
   }
 
   if (target.dataset.sample) {
-    const sample = document.getElementById(`sample-${String(target.dataset.sample || "").replace(/\\D/g, "")}`);
+    const sample = document.getElementById(`sample-${String(target.dataset.sample || "").replace(/\D/g, "")}`);
     if (sample) sample.hidden = !sample.hidden;
+    return;
+  }
+
+  if (target.dataset.recorder === "start") {
+    await startOralRecording();
+    return;
+  }
+
+  if (target.dataset.recorder === "stop") {
+    stopOralRecording();
+    return;
+  }
+
+  if (target.dataset.recorder === "clear") {
+    clearOralRecording();
     return;
   }
 
@@ -3076,18 +3876,33 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+document.addEventListener("submit", (event) => {
+  const form = event.target.closest("[data-profile-form]");
+  if (!form) return;
+
+  event.preventDefault();
+  saveProfileFromForm(form);
+});
+
 document.addEventListener("selectionchange", () => {
   evaluateSelectionForManual();
 });
-document.addEventListener("mouseup", () => {
+document.addEventListener("mouseup", (event) => {
+  if (event.target.closest("[data-profile-form]")) return;
   window.setTimeout(() => evaluateSelectionForManual(), 10);
 });
-document.addEventListener("touchend", () => {
+document.addEventListener("touchend", (event) => {
+  if (event.target.closest("[data-profile-form]")) return;
   window.setTimeout(() => evaluateSelectionForManual(), 10);
 });
 window.addEventListener("scroll", hideSelectionToolbar, true);
 
 document.addEventListener("input", (event) => {
+  if (event.target.matches("[data-profile-name], [data-profile-email]")) {
+    syncProfileDraftFromForm(event.target.closest("[data-profile-form]"));
+    return;
+  }
+
   if (event.target.matches("[data-notes]")) {
     state.notes = event.target.value;
     persist();
