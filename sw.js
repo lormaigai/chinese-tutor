@@ -1,4 +1,4 @@
-const CACHE_NAME = "chinese-tutor-prototype-v12";
+const CACHE_NAME = "chinese-tutor-prototype-v13";
 const APP_SHELL = [
   "./",
   "./index.html",

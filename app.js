@@ -11,7 +11,9 @@ const DAILY_ARTICLE_ID = "daily-recent";
 const PINYIN_ENGINE_URL = "https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/+esm";
 const PINYIN_CACHE_LIMIT = 250;
 const RECENT_HEADLINE_WINDOW_DAYS = 7;
-const RECENT_HEADLINE_LIMIT = 36;
+const RECENT_HEADLINE_LIMIT = 24;
+const WEEKLY_MAILER_SEND_LABEL = "Sunday 8:00am SGT";
+const CHINESE_SOURCE_NAMES = ["8world", "联合早报", "Zaobao"];
 const HEADLINE_FEEDS = [
   {
     sourceName: "CNA",
@@ -22,6 +24,105 @@ const HEADLINE_FEEDS = [
     sourceName: "CNA",
     section: "Singapore",
     url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=10416",
+  },
+];
+
+const CURATED_CHINESE_RECENT_HEADLINES = [
+  {
+    sourceName: "联合早报",
+    sourceTitle: "资媒局未来四年投4800万元 助媒体业者发展数码内容",
+    sourceUrl: "https://www.zaobao.com.sg/news/singapore/story20260618-9222813",
+    sourceDate: "2026-06-18",
+    topicId: "technology",
+    sourceSnippet: "媒体业、人工智能与数码内容转型。",
+  },
+  {
+    sourceName: "联合早报",
+    sourceTitle: "探讨缓解教育“军备竞赛” 早报与教育部联办对话会邀公众建言",
+    sourceUrl: "https://www.zaobao.com.sg/news/singapore/story20260618-9208354",
+    sourceDate: "2026-06-18",
+    topicId: "education",
+    sourceSnippet: "教育压力、成功定义与公众参与。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "87%国人每周都会刷社媒视频 政府拨4800万元助媒体业转型",
+    sourceUrl: "https://www.8world.com/singapore/imda-media-proejct-3185226",
+    sourceDate: "2026-06-18",
+    topicId: "technology",
+    sourceSnippet: "社媒视频、媒体转型与数码素养。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "2027年QS世界大学排名 国立大学稳居前十",
+    sourceUrl: "https://www.8world.com/singapore/2027-qs-world-university-rankings-3185206",
+    sourceDate: "2026-06-18",
+    topicId: "education",
+    sourceSnippet: "高等教育、国际排名与人才竞争。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "什么东西可丢蓝色回收箱？ 调查：过半受访者仍不清楚",
+    sourceUrl: "https://www.8world.com/singapore/reclycling-bin-poll-3184931",
+    sourceDate: "2026-06-17",
+    topicId: "environment",
+    sourceSnippet: "回收习惯、环保教育与公众意识。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "首任网安局局长许智贤7月荣休 方素仪接棒掌舵",
+    sourceUrl: "https://www.8world.com/singapore/csa-to-get-new-chief-executive-3184946",
+    sourceDate: "2026-06-17",
+    topicId: "technology",
+    sourceSnippet: "网络安全、公共机构与数码治理。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "我国积极推广巧固球 让运动员一起训练和比赛",
+    sourceUrl: "https://www.8world.com/singapore/tchoukball-movement-launch-3184981",
+    sourceDate: "2026-06-17",
+    topicId: "culture",
+    sourceSnippet: "体育参与、包容训练与社区生活。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "屋里水喉常流出“屎色水” 住户：闻起来有金属味",
+    sourceUrl: "https://www.8world.com/singapore/discolored-water-bedok-reservoir-hdb-3185001",
+    sourceDate: "2026-06-18",
+    topicId: "society",
+    sourceSnippet: "居住环境、公共卫生与居民反馈。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "疑居民煮东西忘关火 万国弯组屋单位发生火患",
+    sourceUrl: "https://www.8world.com/singapore/fire-at-buangkok-crescent-3184996",
+    sourceDate: "2026-06-17",
+    topicId: "society",
+    sourceSnippet: "居家安全、邻里警觉与公共责任。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "涉嫌无牌放贷 一对男女被捕",
+    sourceUrl: "https://www.8world.com/singapore/man-and-woman-to-be-charged-for-unlicensed-moneylending-offences-3185236",
+    sourceDate: "2026-06-18",
+    topicId: "society",
+    sourceSnippet: "法律意识、金钱压力与社区安全。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "伦敦市长向我国偷师 宣布在伦敦建造可负担住房",
+    sourceUrl: "https://www.8world.com/singapore/sadiq-khan-announce-new-homes-in-london-after-visiting-sg-3185181",
+    sourceDate: "2026-06-18",
+    topicId: "livelihood",
+    sourceSnippet: "住房政策、城市规划与民生压力。",
+  },
+  {
+    sourceName: "8world",
+    sourceTitle: "72岁老翁失踪 警方发寻人启事",
+    sourceUrl: "https://www.8world.com/singapore/72-year-old-man-missing-3185196",
+    sourceDate: "2026-06-18",
+    topicId: "health",
+    sourceSnippet: "乐龄安全、社区关怀与家庭责任。",
   },
 ];
 
@@ -1672,7 +1773,7 @@ function parsePipeline(raw) {
 
 function parseHeadlines(raw) {
   if (!Array.isArray(raw)) return [];
-  return mergeHeadlines(raw.map(normalizeHeadlineRecord).filter(Boolean)).slice(0, RECENT_HEADLINE_LIMIT);
+  return mergeHeadlines(raw.map(normalizeHeadlineRecord).filter(Boolean));
 }
 
 function parseRefreshCadence(value) {
@@ -1798,6 +1899,64 @@ function exportLeadCsv() {
   showToast("邮箱列表已导出");
 }
 
+function leadEmailList({ subscribedOnly = false } = {}) {
+  const leads = state.leads || [];
+  const filtered = subscribedOnly ? leads.filter((lead) => lead.wantsUpdates) : leads;
+  return [...new Set(filtered.map((lead) => lead.email).filter(Boolean))];
+}
+
+function weeklyVocabItems() {
+  const saved = savedItems();
+  if (saved.length) return saved.slice(0, 12);
+  return allLearnableItems().slice(0, 8);
+}
+
+function weeklyEmailSubject() {
+  return `高级华文词汇复习 ${singaporeDateKey()}`;
+}
+
+function weeklyEmailBody() {
+  const items = weeklyVocabItems();
+  const lines = [
+    "本周高级华文词汇复习",
+    "",
+    "请用这些词句各造一个句子，并尝试把其中两个用进口试回答。",
+    "",
+    ...items.map((item, index) => `${index + 1}. ${item.term} (${item.pinyin || "pinyin"})：${item.meaning || item.english || ""}`),
+    "",
+    "复习建议：先看中文解释，再遮住答案回忆意思，最后用PEEL结构说一段话。",
+  ];
+  return lines.join("\n");
+}
+
+function weeklyEmailDraftUrl() {
+  const recipients = leadEmailList({ subscribedOnly: true });
+  const fallbackRecipients = recipients.length ? recipients : leadEmailList();
+  if (!fallbackRecipients.length) return "";
+
+  const params = new URLSearchParams({
+    bcc: fallbackRecipients.join(","),
+    subject: weeklyEmailSubject(),
+    body: weeklyEmailBody(),
+  });
+  return `mailto:?${params.toString()}`;
+}
+
+async function copyLeadEmails() {
+  const emails = leadEmailList();
+  if (!emails.length) {
+    showToast("当前还没有邮箱可复制");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(emails.join(", "));
+    showToast("邮箱已复制");
+  } catch {
+    showToast(emails.join(", "));
+  }
+}
+
 function parseSavedState(raw) {
   if (!isRecord(raw)) return {};
 
@@ -1886,16 +2045,21 @@ function loadState() {
   if (!isRecord(raw)) return fallback;
 
   const safeSaved = parseSavedState(raw.saved);
-  return {
-    ...fallback,
-    tab: ["today", "review", "saved", "oral", "profile"].includes(raw.tab) ? raw.tab : fallback.tab,
-    articleId:
-      raw.articleId === DAILY_ARTICLE_ID || (raw.articleId && raw.articleId === articles[0].id)
+  const topicFilter = topics.some((topic) => topic.id === raw.topicFilter) ? raw.topicFilter : fallback.topicFilter;
+  const articleId =
+    topicFilter === "all"
+      ? DAILY_ARTICLE_ID
+      : raw.articleId === DAILY_ARTICLE_ID || (raw.articleId && raw.articleId === articles[0].id)
         ? DAILY_ARTICLE_ID
         : articles.some((article) => article.id === raw.articleId)
           ? raw.articleId
-          : fallback.articleId,
-    topicFilter: topics.some((topic) => topic.id === raw.topicFilter) ? raw.topicFilter : fallback.topicFilter,
+          : fallback.articleId;
+
+  return {
+    ...fallback,
+    tab: ["today", "review", "saved", "oral", "profile"].includes(raw.tab) ? raw.tab : fallback.tab,
+    articleId,
+    topicFilter,
     pinyin: typeof raw.pinyin === "boolean" ? raw.pinyin : fallback.pinyin,
     english: typeof raw.english === "boolean" ? raw.english : fallback.english,
     saved: safeSaved,
@@ -2019,7 +2183,8 @@ function closeSignupPrompt() {
 }
 
 function filteredArticles() {
-  if (state.topicFilter === "all") return articles;
+  const daily = stateReady ? dailyRecentArticle() : null;
+  if (state.topicFilter === "all") return daily ? [daily, ...articles] : articles;
   return articles.filter((article) => article.topicId === state.topicFilter);
 }
 
@@ -2155,6 +2320,12 @@ function setRefreshCadence(cadence) {
 function setTopicFilter(topicId) {
   if (!topics.some((topic) => topic.id === topicId)) return;
   state.topicFilter = topicId;
+  if (topicId === "all" && dailyRecentArticle()) {
+    state.articleId = DAILY_ARTICLE_ID;
+    persist();
+    render();
+    return;
+  }
   const list = filteredArticles();
   if (!list.some((article) => article.id === state.articleId)) {
     state.articleId = list[0]?.id || articles[0].id;
@@ -2630,7 +2801,7 @@ function mergeHeadlines(headlines) {
 }
 
 function builtInRecentHeadlines() {
-  return articles
+  const articleHeadlines = articles
     .filter((article) => isRecentHeadlineDate(article.sourceDate))
     .map((article) =>
       normalizeHeadlineRecord({
@@ -2646,6 +2817,61 @@ function builtInRecentHeadlines() {
       }),
     )
     .filter(Boolean);
+
+  const curatedChinese = CURATED_CHINESE_RECENT_HEADLINES.map((headline) =>
+    normalizeHeadlineRecord({
+      ...headline,
+      topicLabel: headlineCategoryLabel(headline.topicId),
+      section: "Chinese source seed",
+    }),
+  ).filter(Boolean);
+
+  return mergeHeadlines([...curatedChinese, ...articleHeadlines]);
+}
+
+function isChineseNewsSource(headline) {
+  const source = String(headline?.sourceName || "");
+  return CHINESE_SOURCE_NAMES.some((name) => source.includes(name));
+}
+
+function balanceHeadlineSources(headlines, limit = RECENT_HEADLINE_LIMIT) {
+  const recent = mergeHeadlines(headlines).filter((headline) => isRecentHeadlineDate(headline.sourceDate));
+  const chinese = recent.filter(isChineseNewsSource);
+  const other = recent.filter((headline) => !isChineseNewsSource(headline));
+  const targetChinese = Math.min(chinese.length, Math.ceil(Math.min(limit, recent.length) / 2));
+  const selected = [];
+  let chineseIndex = 0;
+  let otherIndex = 0;
+  let selectedChinese = 0;
+
+  while (selected.length < limit && selected.length < recent.length) {
+    const shouldUseChinese =
+      chineseIndex < chinese.length &&
+      (selectedChinese < targetChinese || otherIndex >= other.length || selected.length % 2 === 0);
+
+    if (shouldUseChinese) {
+      selected.push(chinese[chineseIndex]);
+      chineseIndex += 1;
+      selectedChinese += 1;
+      continue;
+    }
+
+    if (otherIndex < other.length) {
+      selected.push(other[otherIndex]);
+      otherIndex += 1;
+      continue;
+    }
+
+    if (chineseIndex < chinese.length) {
+      selected.push(chinese[chineseIndex]);
+      chineseIndex += 1;
+      selectedChinese += 1;
+    } else {
+      break;
+    }
+  }
+
+  return selected;
 }
 
 function extractXmlText(node, tagNames) {
@@ -2706,14 +2932,12 @@ async function fetchFeedHeadlines(feed) {
 async function loadRecentHeadlines() {
   const results = await Promise.allSettled(HEADLINE_FEEDS.map(fetchFeedHeadlines));
   const fetched = results.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
-  return mergeHeadlines([...fetched, ...builtInRecentHeadlines()])
-    .filter((headline) => isRecentHeadlineDate(headline.sourceDate))
-    .slice(0, RECENT_HEADLINE_LIMIT);
+  return balanceHeadlineSources([...fetched, ...builtInRecentHeadlines()]);
 }
 
 function recentHeadlinePool() {
   const live = parseHeadlines(state.headlines).filter((headline) => isRecentHeadlineDate(headline.sourceDate));
-  return live.length ? live : builtInRecentHeadlines();
+  return live.length ? balanceHeadlineSources(live) : balanceHeadlineSources(builtInRecentHeadlines());
 }
 
 function headlineOfTheDay() {
@@ -2776,6 +3000,17 @@ function headlineChineseTitle(headline) {
 function headlineChineseSummary(headline) {
   const topic = headlineTopicNoun(headline.topicId);
   return `这则${headline.sourceName}近期新闻围绕“${topic}”展开。练习时不需要背原文，而要学会用中文概括现象、分析影响，并联系新加坡社会提出自己的看法。`;
+}
+
+function headlineChineseReading(headline) {
+  const topic = headlineTopicNoun(headline.topicId);
+  const title = headlineChineseTitle(headline);
+  const sourceMode = isChineseNewsSource(headline) ? "中文源文" : "英文源文";
+  return [
+    `${title}。这则${sourceMode}的标题是“${headline.sourceTitle}”。把它改成口试材料时，重点不是复制新闻细节，而是抓住“${topic}”这个核心课题，说明它为什么会影响普通人的生活。`,
+    `从学生的角度来看，这类新闻可以训练我们把事实转化成观点。我们可以先概括发生了什么，再分析不同群体可能受到的影响，最后联系学校、家庭或社区提出可行建议。这样回答会比只说“我觉得重要”更有层次。`,
+    `因此，阅读这则新闻时，可以记住三个方向：第一，现象背后有什么社会原因；第二，它带来哪些利弊或风险；第三，个人、学校和政府可以怎样配合。用这样的方式读新闻，才能把近期头条变成高级华文口试素材。`,
+  ];
 }
 
 function dailyRecentArticle() {
@@ -3093,12 +3328,18 @@ function renderFeaturedHeadline(headline) {
 }
 
 function renderCompactHeadline(headline) {
+  const reading = headlineChineseReading(headline);
   return `
     <article class="headline-link">
       <div>
-        <span>${escapeHtml(headlineChineseSummary(headline))}</span>
+        <span>${escapeHtml(headlineChineseTitle(headline))}</span>
+        <p>${escapeHtml(headlineChineseSummary(headline))}</p>
         <small>源文标题：${escapeHtml(headline.sourceTitle)}</small>
         <small>${escapeHtml(headline.sourceDate)} · ${escapeHtml(headline.sourceName)}</small>
+        <details class="headline-reading">
+          <summary>展开中文练习稿</summary>
+          ${reading.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+        </details>
       </div>
       <a class="text-link" href="${sanitizeSafeUrl(headline.sourceUrl)}" target="_blank" rel="noreferrer">打开源文</a>
     </article>
@@ -3478,11 +3719,9 @@ function renderProfileForm({ modal = false } = {}) {
       </label>
       <p class="privacy-note">By default, the word bank stays in this browser. / 默认词句本保存在本机浏览器。</p>
       <div class="action-row">
-        ${modal ? "" : `<button class="secondary-button" type="button" data-export-leads>导出用户列表（CSV）</button>`}
         <button class="primary-button" type="submit" data-create-profile>${buttonLabel}</button>
         ${modal ? `<button class="secondary-button" type="button" data-close-signup>稍后 Later</button>` : ""}
       </div>
-      ${modal ? "" : renderLeadDirectory()}
     </form>
   `;
 }
@@ -3542,6 +3781,36 @@ function renderLeadDirectory() {
   `;
 }
 
+function renderEmailSignupPanel() {
+  const leads = state.leads || [];
+  const subscribed = leadEmailList({ subscribedOnly: true });
+  const draftUrl = weeklyEmailDraftUrl();
+
+  return `
+    <section class="panel email-signup-panel">
+      <div class="panel-heading-row">
+        <h2>电邮名单</h2>
+        <span class="status-pill warn">Mailer not connected</span>
+      </div>
+      <div class="stats-grid mini">
+        <div class="stat"><strong>${leads.length}</strong><span>saved emails</span></div>
+        <div class="stat"><strong>${subscribed.length}</strong><span>weekly opt-ins</span></div>
+      </div>
+      <p class="small">名单目前保存在这个浏览器。自动周报尚未接上邮件服务；正式发送时间建议设为 ${WEEKLY_MAILER_SEND_LABEL}。</p>
+      <div class="action-row">
+        <button class="secondary-button compact" type="button" data-export-leads>导出CSV</button>
+        <button class="secondary-button compact" type="button" data-copy-lead-emails>复制邮箱</button>
+        ${
+          draftUrl
+            ? `<a class="secondary-button compact" href="${escapeHtml(draftUrl)}">打开测试邮件草稿</a>`
+            : `<button class="secondary-button compact" type="button" disabled>暂无测试邮件</button>`
+        }
+      </div>
+      ${renderLeadDirectory()}
+    </section>
+  `;
+}
+
 function renderTopicInventory() {
   return topics
     .filter((topic) => topic.id !== "all")
@@ -3580,6 +3849,8 @@ function renderProfile() {
           : renderProfileForm()
       }
     </section>
+
+    ${renderEmailSignupPanel()}
 
     <section class="panel">
       <h2>新闻更新节奏</h2>
@@ -3843,6 +4114,11 @@ document.addEventListener("click", async (event) => {
 
   if (target.hasAttribute("data-export-leads")) {
     exportLeadCsv();
+    return;
+  }
+
+  if (target.hasAttribute("data-copy-lead-emails")) {
+    await copyLeadEmails();
     return;
   }
 
