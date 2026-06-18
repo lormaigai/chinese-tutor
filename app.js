@@ -1531,9 +1531,11 @@ stateReady = true;
 let timerId = null;
 let deferredInstallPrompt = null;
 let pendingSelectionText = "";
+let selectionToolbarPointerActive = false;
 let signupPromptOpen = false;
 let continueAfterSignup = false;
 let pendingSaveIdAfterSignup = "";
+let pendingManualSelectionItem = null;
 let profileDraft = {
   displayName: "",
   email: "",
@@ -1555,10 +1557,12 @@ function createSelectionToolbar() {
   toolbar.className = "selection-toolbar";
   toolbar.hidden = true;
   toolbar.innerHTML = `
-    <p class="selection-title">未识别词汇</p>
+    <p class="selection-title" data-selection-title>选中文本</p>
     <p class="selection-term" data-selection-term></p>
+    <div class="selection-definition" data-selection-definition hidden></div>
     <div class="selection-actions">
-      <button class="primary-button compact" type="button" data-add-selected>加到词汇本</button>
+      <button class="primary-button compact" type="button" data-translate-selected>Translate / 翻译</button>
+      <button class="secondary-button compact" type="button" data-save-selected>存入词句本</button>
       <button class="secondary-button compact" type="button" data-cancel-selection>取消</button>
     </div>
   `;
@@ -1567,7 +1571,22 @@ function createSelectionToolbar() {
 }
 
 const selectionToolbar = createSelectionToolbar();
+selectionToolbar.addEventListener("mousedown", (event) => event.preventDefault());
+selectionToolbar.addEventListener("pointerdown", () => {
+  selectionToolbarPointerActive = true;
+});
+selectionToolbar.addEventListener("pointerup", () => {
+  window.setTimeout(() => {
+    selectionToolbarPointerActive = false;
+  }, 0);
+});
+selectionToolbar.addEventListener("pointercancel", () => {
+  selectionToolbarPointerActive = false;
+});
 const selectionTermNode = selectionToolbar.querySelector("[data-selection-term]");
+const selectionTitleNode = selectionToolbar.querySelector("[data-selection-title]");
+const selectionDefinitionNode = selectionToolbar.querySelector("[data-selection-definition]");
+const selectionSaveButton = selectionToolbar.querySelector("[data-save-selected]");
 
 function vocab(id, term, pinyin, english, meaning, example, examUse) {
   return { id, term, pinyin, english, meaning, example, examUse, type: "vocab" };
@@ -2192,6 +2211,7 @@ function closeSignupPrompt() {
   signupPromptOpen = false;
   continueAfterSignup = false;
   pendingSaveIdAfterSignup = "";
+  pendingManualSelectionItem = null;
   seedProfileDraft();
   render();
 }
@@ -2258,9 +2278,11 @@ function saveProfileFromForm(form) {
   persist();
   const shouldContinue = continueAfterSignup;
   const pendingSaveId = pendingSaveIdAfterSignup;
+  const pendingManualItem = pendingManualSelectionItem;
   signupPromptOpen = false;
   continueAfterSignup = false;
   pendingSaveIdAfterSignup = "";
+  pendingManualSelectionItem = null;
   seedProfileDraft();
 
   if (PROFILE_LEAD_ENDPOINT && profileEmailCaptureEnabled()) {
@@ -2275,6 +2297,15 @@ function saveProfileFromForm(form) {
 
   if (pendingSaveId) {
     toggleSave(pendingSaveId);
+    showToast("账户已创建，词句已加入词句本");
+    return;
+  }
+
+  if (pendingManualItem) {
+    state.saved[pendingManualItem.id] = { item: pendingManualItem, savedAt: Date.now() };
+    reviewFor(pendingManualItem.id);
+    persist();
+    render();
     showToast("账户已创建，词句已加入词句本");
     return;
   }
@@ -2417,39 +2448,153 @@ function sanitizeManualTerm(raw) {
   return safe;
 }
 
-function addManualSelectionToSaved() {
-  const article = currentArticle();
+function selectedTermLookup(term) {
+  const item = itemByTerm(term);
+  if (item) {
+    return {
+      item,
+      saved: Boolean(state.saved[item.id]),
+      savedId: item.id,
+      source: "library",
+    };
+  }
+
+  const savedEntry = findSavedItemByTerm(term);
+  if (!savedEntry) return null;
+
+  return {
+    item: savedEntry[1].item,
+    saved: true,
+    savedId: savedEntry[0],
+    source: "saved",
+  };
+}
+
+function selectionPinyinForTerm(term, item = null) {
+  const provided = item?.pinyin || "";
+  const generated = pinyinTokensForText(term, provided);
+  return generated.length ? generated.join(" ") : provided;
+}
+
+function selectionTypeLabel(item) {
+  if (!item) return "自选词句";
+  if (item.label) return item.label;
+  const map = {
+    vocab: "词汇",
+    manual: "自选词",
+    chengyu: "成语",
+    suyu: "俗语",
+    haoci: "好词好句",
+    phrase: "短语",
+  };
+  return map[item.type] || "词句";
+}
+
+function renderSelectionDefinition(term) {
+  const lookup = selectedTermLookup(term);
+  const item = lookup?.item || null;
+  const pinyin = selectionPinyinForTerm(term, item);
+  const english = item?.english ? ` · ${escapeHtml(item.english)}` : "";
+
+  selectionTitleNode.textContent = item ? "词句释义" : "本地小词典";
+  selectionSaveButton.textContent = lookup?.saved ? "已在词句本" : "存入词句本";
+  selectionSaveButton.disabled = Boolean(lookup?.saved);
+
+  if (item) {
+    selectionDefinitionNode.innerHTML = `
+      <div class="selection-meta">${escapeHtml(selectionTypeLabel(item))}${pinyin ? ` · ${escapeHtml(pinyin)}` : ""}${english}</div>
+      <p class="selection-meaning">${escapeHtml(item.meaning || "请在复习时补充释义。")}</p>
+      ${item.example ? `<p class="selection-example">例句：${escapeHtml(item.example)}</p>` : ""}
+      ${item.examUse ? `<p class="selection-example">口试用法：${escapeHtml(item.examUse)}</p>` : ""}
+    `;
+  } else {
+    selectionDefinitionNode.innerHTML = `
+      <div class="selection-meta">自选词句${pinyin ? ` · ${escapeHtml(pinyin)}` : " · 拼音加载中"}</div>
+      <p class="selection-meaning">这个词句暂时不在内置词库里。你可以先确认读音，再存入词句本，之后复习时补充更准确的释义和例句。</p>
+      <p class="selection-example">原文选中：${escapeHtml(term)}</p>
+    `;
+  }
+
+  selectionDefinitionNode.hidden = false;
+}
+
+function translatePendingSelection() {
   const term = sanitizeManualTerm(pendingSelectionText);
   if (!term) {
     hideSelectionToolbar();
     return;
   }
 
-  if (itemByTerm(term) || hasSavedTerm(term)) {
+  renderSelectionDefinition(term);
+
+  if (/[\u4e00-\u9fff]/u.test(term) && !pinyinEngine && !pinyinEngineFailed) {
+    ensurePinyinEngine().then(() => {
+      if (pendingSelectionText === term && !selectionDefinitionNode.hidden) {
+        renderSelectionDefinition(term);
+      }
+    });
+  }
+}
+
+function makeManualSelectionItem(term) {
+  const article = currentArticle();
+  const pinyin = selectionPinyinForTerm(term);
+  const id = makeManualWordId(term);
+
+  return {
+    id,
+    term,
+    pinyin,
+    english: "自定义词",
+    meaning: "这是你从文章中选出的词句，暂未收录在内置词库。",
+    example: `原文中出现：“${term}”。`,
+    examUse: "复习时可补充英文意思、中文释义和自己的例句。",
+    type: "manual",
+    articleId: article.id,
+    articleTitle: article.title,
+  };
+}
+
+function savePendingSelectionToWordBank() {
+  const term = sanitizeManualTerm(pendingSelectionText);
+  if (!term) {
+    hideSelectionToolbar();
+    return;
+  }
+
+  const lookup = selectedTermLookup(term);
+  if (lookup?.saved) {
     showToast(`${term} 已在词汇本`);
     hideSelectionToolbar();
     return;
   }
 
-  const id = makeManualWordId(term);
-  const item = {
-    id,
-    term,
-    pinyin: "",
-    english: "自定义词",
-    meaning: "请补充释义。",
-    example: "可在复习时回想该词在文中的用法。",
-    examUse: "建议结合原文造句并反复复习。",
-    type: "manual",
-    articleId: article.id,
-    articleTitle: article.title,
-  };
+  if (lookup?.item) {
+    hideSelectionToolbar({ clearSelection: false });
+    toggleSave(lookup.item.id);
+    return;
+  }
 
-  state.saved[id] = {
+  if (hasSavedTerm(term)) {
+    showToast(`${term} 已在词汇本`);
+    hideSelectionToolbar();
+    return;
+  }
+
+  const item = makeManualSelectionItem(term);
+
+  if (!hasProfile()) {
+    pendingManualSelectionItem = item;
+    hideSelectionToolbar({ clearSelection: false });
+    openSignupPrompt(false);
+    return;
+  }
+
+  state.saved[item.id] = {
     item,
     savedAt: Date.now(),
   };
-  reviewFor(id);
+  reviewFor(item.id);
   persist();
   showToast(`已加入词汇：${term}`);
   hideSelectionToolbar();
@@ -2458,15 +2603,24 @@ function addManualSelectionToSaved() {
 
 function hideSelectionToolbar({ clearSelection = true } = {}) {
   pendingSelectionText = "";
+  selectionToolbarPointerActive = false;
   if (clearSelection) {
     window.getSelection()?.removeAllRanges();
   }
+  selectionDefinitionNode.hidden = true;
+  selectionDefinitionNode.innerHTML = "";
+  selectionSaveButton.disabled = false;
   selectionToolbar.hidden = true;
 }
 
 function showSelectionToolbar(term, range) {
   pendingSelectionText = term;
   selectionTermNode.textContent = term;
+  selectionTitleNode.textContent = selectedTermLookup(term) ? "可查询词句" : "选中文本";
+  selectionDefinitionNode.hidden = true;
+  selectionDefinitionNode.innerHTML = "";
+  selectionSaveButton.disabled = false;
+  selectionSaveButton.textContent = selectedTermLookup(term)?.saved ? "已在词句本" : "存入词句本";
   const passage = document.querySelector(".passage");
   const rect = range.getBoundingClientRect();
   const left = Math.max(10, Math.min(window.innerWidth - 300, rect.left + rect.width / 2 - 100));
@@ -2480,6 +2634,10 @@ function showSelectionToolbar(term, range) {
 function evaluateSelectionForManual() {
   const passage = document.querySelector(".passage");
   const active = document.activeElement;
+  if (selectionToolbarPointerActive || (active && selectionToolbar.contains(active))) {
+    return;
+  }
+
   if (isEditableElement(active)) {
     hideSelectionToolbar({ clearSelection: false });
     return;
@@ -2505,10 +2663,6 @@ function evaluateSelectionForManual() {
     return;
   }
 
-  if (itemByTerm(term) || hasSavedTerm(term)) {
-    hideSelectionToolbar();
-    return;
-  }
   showSelectionToolbar(term, range);
 }
 
@@ -3169,12 +3323,12 @@ function renderManualVocabSection(article) {
     <section class="panel">
       <div class="section-heading">
         <h2>自选词汇</h2>
-        <span class="small">高亮未识别词汇并加入</span>
+        <span class="small">高亮词句后点 Translate</span>
       </div>
       ${
         manualItems.length
           ? `<div class="grid two">${manualItems.map(renderVocabCard).join("")}</div>`
-          : `<p class="small">从文章中高亮生词后可直接加入词汇。</p>`
+          : `<p class="small">用鼠标高亮词句，或在手机上长按选择文字，就会出现翻译和收藏按钮。</p>`
       }
     </section>
   `;
@@ -4149,8 +4303,13 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
-  if (target.dataset.addSelected) {
-    addManualSelectionToSaved();
+  if (target.dataset.translateSelected) {
+    translatePendingSelection();
+    return;
+  }
+
+  if (target.dataset.saveSelected || target.dataset.addSelected) {
+    savePendingSelectionToWordBank();
     return;
   }
 

@@ -475,8 +475,43 @@ h3 {
   font-family: var(--font-kai);
 }
 
+.selection-definition {
+  display: grid;
+  gap: 6px;
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 9px;
+  border: 1px solid #e9d9b4;
+  border-radius: 8px;
+  background: #fff9e8;
+}
+
+.selection-definition[hidden] {
+  display: none;
+}
+
+.selection-meta {
+  color: var(--tea);
+  font-size: 0.78rem;
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.selection-meaning,
+.selection-example {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.selection-example {
+  color: var(--muted);
+}
+
 .selection-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
