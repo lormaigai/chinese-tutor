@@ -990,6 +990,32 @@ h3 {
   margin: 0;
 }
 
+.owner-token-form {
+  display: grid;
+  gap: 8px;
+}
+
+.owner-token-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--tea);
+  font-size: 0.82rem;
+  font-weight: 780;
+}
+
+.owner-token-form input {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: #fffdf8;
+  color: var(--ink);
+}
+
+.error-text {
+  color: #9b2f1d;
+}
+
 .timer {
   display: inline-flex;
   align-items: center;

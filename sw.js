@@ -1,8 +1,9 @@
-const CACHE_NAME = "chinese-tutor-prototype-v19";
+const CACHE_NAME = "chinese-tutor-prototype-v20";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
+  "./profile-lead-config.js",
   "./app.js",
   "./manifest.webmanifest",
   "./daily-immersion.svg",

@@ -3,12 +3,15 @@ const STORAGE_KEY = "chinese-tutor-prototype-v2";
 const ARTICLE_REFRESH_CADENCES = ["daily", "weekly"];
 const DEFAULT_REFRESH_CADENCE = "weekly";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
-const PROFILE_LEAD_ENDPOINT = "";
-const PROFILE_LEAD_POST_MODE = "auto";
+const APP_CONFIG = typeof window === "undefined" ? {} : window.CHINESE_TUTOR_CONFIG || {};
+const PROFILE_LEAD_ENDPOINT = String(APP_CONFIG.profileLeadEndpoint || "").trim();
+const PROFILE_LEAD_POST_MODE = String(APP_CONFIG.profileLeadPostMode || "auto").trim();
+const OWNER_LEAD_ENDPOINT = String(APP_CONFIG.ownerLeadEndpoint || PROFILE_LEAD_ENDPOINT).trim();
 const ANONYMOUS_VISITOR_ENDPOINT = "";
 const LOCAL_LEAD_HISTORY_LIMIT = 2000;
 const ANON_VISITOR_STORAGE_KEY = "chinese-tutor-anon-visits-v1";
 const OWNER_TOOLS_STORAGE_KEY = "chinese-tutor-owner-tools-v1";
+const OWNER_LEAD_TOKEN_STORAGE_KEY = "chinese-tutor-owner-lead-token-v1";
 const DAILY_ARTICLE_ID = "daily-recent";
 const PINYIN_ENGINE_URL = "https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/+esm";
 const PINYIN_CACHE_LIMIT = 250;
@@ -1529,6 +1532,12 @@ const articles = [
 const SAFE_ID = /^[a-z0-9-]{3,80}$/i;
 let stateReady = false;
 const state = loadState();
+let centralLeadState = {
+  status: "idle",
+  leads: [],
+  error: "",
+  checkedAt: null,
+};
 stateReady = true;
 let timerId = null;
 let deferredInstallPrompt = null;
@@ -1714,6 +1723,11 @@ function isHttpEndpoint(url) {
 }
 
 function sanitizeTimestamp(value) {
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return sanitizeTimestamp(parsed);
+  }
+
   const time = Number(value);
   if (!Number.isFinite(time)) return Date.now();
   if (time < 0) return 0;
@@ -1843,15 +1857,21 @@ function parseProfile(raw) {
 function normalizeLeadRecord(raw) {
   const email = sanitizeEmail(raw?.email);
   if (!email) return null;
+  const wantsUpdates =
+    raw.wantsUpdates === true ||
+    raw.wantsUpdates === "true" ||
+    raw.wantsUpdates === "TRUE" ||
+    raw.wantsUpdates === 1 ||
+    raw.wantsUpdates === "1";
 
   return {
-    displayName: sanitizeText(raw.displayName, 80),
+    displayName: sanitizeText(raw.displayName || raw.name, 80),
     email,
-    wantsUpdates: raw.wantsUpdates === true,
+    wantsUpdates,
     refreshCadence: parseRefreshCadence(raw.refreshCadence),
     source: sanitizeText(raw.source || "chinese-tutor-app", 80),
     page: sanitizeText(raw.page, 220),
-    createdAt: sanitizeTimestamp(raw.createdAt),
+    createdAt: sanitizeTimestamp(raw.createdAt || raw.timestamp || raw.savedAt),
   };
 }
 
@@ -1915,6 +1935,149 @@ function localLeadRecords() {
   return parseLeadRecords([...(state.leads || []), currentProfileLeadRecord()].filter(Boolean));
 }
 
+function ownerLeadEndpoint() {
+  return isHttpEndpoint(OWNER_LEAD_ENDPOINT) ? OWNER_LEAD_ENDPOINT : PROFILE_LEAD_ENDPOINT;
+}
+
+function ownerCentralCollectionEnabled() {
+  return isHttpEndpoint(ownerLeadEndpoint());
+}
+
+function ownerLeadToken() {
+  try {
+    return localStorage.getItem(OWNER_LEAD_TOKEN_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function setOwnerLeadToken(token) {
+  const safeToken = sanitizeText(token, 160);
+  try {
+    if (safeToken) {
+      localStorage.setItem(OWNER_LEAD_TOKEN_STORAGE_KEY, safeToken);
+    } else {
+      localStorage.removeItem(OWNER_LEAD_TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore private-mode storage failures.
+  }
+  return safeToken;
+}
+
+function ownerKnownLeadRecords() {
+  return parseLeadRecords([...(centralLeadState.leads || []), ...localLeadRecords()]);
+}
+
+function centralLeadStatusLabel() {
+  if (!ownerCentralCollectionEnabled()) return "collector not connected";
+  if (centralLeadState.status === "loading") return "loading central list";
+  if (centralLeadState.status === "loaded") return `${centralLeadState.leads.length} central emails loaded`;
+  if (centralLeadState.status === "error") return "central load failed";
+  return ownerLeadToken() ? "ready to load central list" : "admin token needed";
+}
+
+function fetchCentralLeadsJsonp(endpoint, token) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `__chineseTutorLeadCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    let script = null;
+    let timeoutId = null;
+
+    function cleanup() {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      if (script?.parentNode) script.parentNode.removeChild(script);
+      try {
+        delete window[callbackName];
+      } catch {
+        window[callbackName] = undefined;
+      }
+    }
+
+    try {
+      const url = new URL(endpoint);
+      url.searchParams.set("action", "list");
+      url.searchParams.set("token", token);
+      url.searchParams.set("callback", callbackName);
+
+      window[callbackName] = (payload) => {
+        cleanup();
+        resolve(payload);
+      };
+
+      script = document.createElement("script");
+      script.src = url.toString();
+      script.async = true;
+      script.onerror = () => {
+        cleanup();
+        reject(new Error("Unable to load central email list"));
+      };
+
+      timeoutId = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("Central email list timed out"));
+      }, 12000);
+
+      document.body.appendChild(script);
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
+  });
+}
+
+async function loadCentralLeadRecords({ token } = {}) {
+  const endpoint = ownerLeadEndpoint();
+  if (!isHttpEndpoint(endpoint)) {
+    showToast("还没接上中央邮箱收集器");
+    return;
+  }
+
+  const safeToken = token ? setOwnerLeadToken(token) : ownerLeadToken();
+  if (!safeToken) {
+    showToast("请输入 owner admin token 才能读取总名单");
+    render();
+    return;
+  }
+
+  centralLeadState = {
+    ...centralLeadState,
+    status: "loading",
+    error: "",
+  };
+  render();
+
+  try {
+    const payload = await fetchCentralLeadsJsonp(endpoint, safeToken);
+    if (!payload || payload.ok === false) {
+      throw new Error(payload?.error || "Central email list rejected the request");
+    }
+
+    const rawLeads = Array.isArray(payload.leads)
+      ? payload.leads
+      : Array.isArray(payload.records)
+        ? payload.records
+        : [];
+    const leads = parseLeadRecords(rawLeads);
+    centralLeadState = {
+      status: "loaded",
+      leads,
+      error: "",
+      checkedAt: Date.now(),
+    };
+    render();
+    showToast(`已载入 ${leads.length} 个中央邮箱`);
+  } catch (error) {
+    centralLeadState = {
+      ...centralLeadState,
+      status: "error",
+      error: sanitizeText(error?.message || "中央名单读取失败", 180),
+      checkedAt: Date.now(),
+    };
+    render();
+    showToast("中央名单读取失败，请检查 endpoint 和 token");
+  }
+}
+
 function activateOwnerToolsFromUrl() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -1950,7 +2113,7 @@ function csvField(value) {
 }
 
 function exportLeadCsv() {
-  const leads = localLeadRecords();
+  const leads = ownerToolsEnabled() ? ownerKnownLeadRecords() : localLeadRecords();
   if (!leads.length) {
     showToast("当前还没有邮箱可导出");
     return;
@@ -1982,7 +2145,7 @@ function exportLeadCsv() {
 }
 
 function leadEmailList({ subscribedOnly = false } = {}) {
-  const leads = localLeadRecords();
+  const leads = ownerToolsEnabled() ? ownerKnownLeadRecords() : localLeadRecords();
   const filtered = subscribedOnly ? leads.filter((lead) => lead.wantsUpdates) : leads;
   return [...new Set(filtered.map((lead) => lead.email).filter(Boolean))];
 }
@@ -4148,13 +4311,13 @@ function renderRefreshCadenceControls() {
 }
 
 function renderLeadDirectory() {
-  const leads = localLeadRecords();
+  const leads = ownerToolsEnabled() ? ownerKnownLeadRecords() : localLeadRecords();
   if (!leads.length) {
     return `
       <div class="owner-empty-state">
-        <strong>No local emails on this browser yet.</strong>
-        <p class="small">Owner mode can only read profiles saved in this browser until a central signup collector is connected.</p>
-        <p class="small">目前 owner mode 只能看到这个浏览器里保存的账户。要看到所有访客的电邮，需要先接上中央表单或数据库。</p>
+        <strong>No emails loaded yet.</strong>
+        <p class="small">Owner mode can only read profiles saved in this browser until a central signup collector is connected and loaded.</p>
+        <p class="small">目前 owner mode 只能看到本机缓存；接上中央收集器并输入 owner token 后，才会载入所有访客的总名单。</p>
       </div>
     `;
   }
@@ -4181,34 +4344,62 @@ function renderLeadDirectory() {
 }
 
 function renderOwnerLeadBackendPanel() {
-  const connected = profileEmailCaptureEnabled();
+  const connected = ownerCentralCollectionEnabled();
+  const hasToken = Boolean(ownerLeadToken());
   return `
     <div class="owner-backend-note ${connected ? "connected" : "needed"}">
       <div class="owner-backend-heading">
         <strong>${connected ? "All-device signup collection is connected." : "All-device signup collection is not connected yet."}</strong>
-        <span class="status-pill ${connected ? "" : "warn"}">${escapeHtml(profileLeadEndpointSummary())}</span>
+        <span class="status-pill ${connected && hasToken ? "" : "warn"}">${escapeHtml(centralLeadStatusLabel())}</span>
       </div>
       <p class="small">
         ${
           connected
-            ? "New profile signups will also be posted to the configured external collector. This owner page still shows this browser's cached list; use the collector as the full source of truth."
-            : "This app is hosted as a static GitHub Pages site, so it cannot see emails saved on other people's devices by itself. To collect every live-link signup, connect an outside collector, then deploy its URL in PROFILE_LEAD_ENDPOINT."
+            ? "New profile signups will also be posted to the configured external collector. Use the owner token below to load the private master list into this page."
+            : "This app is hosted as a static GitHub Pages site, so it cannot see emails saved on other people's devices by itself. To collect every live-link signup, connect an outside collector, then deploy its URL in profile-lead-config.js."
         }
       </p>
-      <div class="owner-backend-steps">
-        <p><strong>To see all accounts:</strong> use Google Sheets + Apps Script, Formspree, Supabase, Airtable, or another form/database service.</p>
-        <p><strong>To send weekly emails:</strong> send from that service, or use Gmail/Apps Script with a weekly trigger at ${WEEKLY_MAILER_SEND_LABEL}.</p>
-        <p><strong>Privacy note:</strong> the owner link is a convenience switch, not real login security. The private master list should live inside the external service account that only you can access.</p>
-      </div>
+      ${
+        connected
+          ? `
+            <form class="owner-token-form" data-owner-token-form>
+              <label>
+                <span>Owner admin token</span>
+                <input type="password" inputmode="text" autocomplete="off" data-owner-lead-token placeholder="${hasToken ? "Token saved - leave blank to reuse" : "Paste private token"}" />
+              </label>
+              <div class="action-row">
+                <button class="secondary-button compact" type="submit">Load central list</button>
+                <button class="secondary-button compact" type="button" data-clear-owner-token ${hasToken ? "" : "disabled"}>Clear token</button>
+              </div>
+            </form>
+            ${
+              centralLeadState.error
+                ? `<p class="small error-text">${escapeHtml(centralLeadState.error)}</p>`
+                : centralLeadState.checkedAt
+                  ? `<p class="small">Last central check: ${formatLeadTime(centralLeadState.checkedAt)}</p>`
+                  : ""
+            }
+          `
+          : `
+            <div class="owner-backend-steps">
+              <p><strong>To see all accounts:</strong> set up the Google Apps Script backend in <code>email-signup-backend/google-apps-script.js</code>.</p>
+              <p><strong>Then:</strong> paste the deployed script URL into <code>profile-lead-config.js</code> and push the app again.</p>
+              <p><strong>To send weekly emails:</strong> use the central list here, or add a Gmail/Apps Script weekly trigger at ${WEEKLY_MAILER_SEND_LABEL}.</p>
+              <p><strong>Privacy note:</strong> the owner link is a convenience switch, not real login security. The private master list needs an owner token.</p>
+            </div>
+          `
+      }
     </div>
   `;
 }
 
 function renderEmailSignupPanel() {
-  const leads = localLeadRecords();
+  const leads = ownerKnownLeadRecords();
+  const localLeads = localLeadRecords();
+  const centralLeads = centralLeadState.leads || [];
   const subscribed = leadEmailList({ subscribedOnly: true });
   const draftUrl = weeklyEmailDraftUrl();
-  const connected = profileEmailCaptureEnabled();
+  const connected = ownerCentralCollectionEnabled();
 
   return `
     <section class="panel email-signup-panel">
@@ -4217,8 +4408,10 @@ function renderEmailSignupPanel() {
         <span class="status-pill ${connected ? "" : "warn"}">${connected ? "Owner only · collector on" : "Owner only · local cache"}</span>
       </div>
       <div class="stats-grid mini">
-        <div class="stat"><strong>${leads.length}</strong><span>local emails</span></div>
-        <div class="stat"><strong>${subscribed.length}</strong><span>local weekly opt-ins</span></div>
+        <div class="stat"><strong>${leads.length}</strong><span>emails available here</span></div>
+        <div class="stat"><strong>${centralLeads.length}</strong><span>central loaded</span></div>
+        <div class="stat"><strong>${localLeads.length}</strong><span>local cache</span></div>
+        <div class="stat"><strong>${subscribed.length}</strong><span>weekly opt-ins</span></div>
       </div>
       <p class="small">This panel shows the local cache saved on this browser. It cannot show every public signup until a central collector is connected and deployed.</p>
       <p class="small">这里显示的是本机缓存。若要看到网站上所有人的注册邮箱，需要先接上一个中央表单或数据库。</p>
@@ -4587,6 +4780,19 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  if (target.hasAttribute("data-clear-owner-token")) {
+    setOwnerLeadToken("");
+    centralLeadState = {
+      status: "idle",
+      leads: [],
+      error: "",
+      checkedAt: null,
+    };
+    render();
+    showToast("owner token 已清除");
+    return;
+  }
+
   if (target.hasAttribute("data-delete-profile")) {
     deleteProfile();
     return;
@@ -4734,6 +4940,14 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("submit", (event) => {
+  const tokenForm = event.target.closest("[data-owner-token-form]");
+  if (tokenForm) {
+    event.preventDefault();
+    const token = tokenForm.querySelector("[data-owner-lead-token]")?.value || "";
+    loadCentralLeadRecords({ token });
+    return;
+  }
+
   const form = event.target.closest("[data-profile-form]");
   if (!form) return;
 
