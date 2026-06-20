@@ -946,6 +946,50 @@ h3 {
   font-family: var(--font-kai);
 }
 
+.owner-empty-state,
+.owner-backend-note {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid #f0e3bf;
+  border-radius: 7px;
+  background: #fffbea;
+}
+
+.owner-empty-state strong,
+.owner-backend-note strong {
+  color: #4a3812;
+}
+
+.owner-backend-note {
+  margin-top: 10px;
+}
+
+.owner-backend-note.connected {
+  border-color: #bdd7c4;
+  background: #f1fbf4;
+}
+
+.owner-backend-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.owner-backend-steps {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.owner-backend-steps p {
+  margin: 0;
+}
+
 .timer {
   display: inline-flex;
   align-items: center;

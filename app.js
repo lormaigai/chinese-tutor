@@ -4,6 +4,7 @@ const ARTICLE_REFRESH_CADENCES = ["daily", "weekly"];
 const DEFAULT_REFRESH_CADENCE = "weekly";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 const PROFILE_LEAD_ENDPOINT = "";
+const PROFILE_LEAD_POST_MODE = "auto";
 const ANONYMOUS_VISITOR_ENDPOINT = "";
 const LOCAL_LEAD_HISTORY_LIMIT = 2000;
 const ANON_VISITOR_STORAGE_KEY = "chinese-tutor-anon-visits-v1";
@@ -2418,16 +2419,54 @@ function profileEmailCaptureEnabled() {
   return isHttpEndpoint(PROFILE_LEAD_ENDPOINT);
 }
 
+function profileLeadEndpointSummary() {
+  if (!profileEmailCaptureEnabled()) return "Not connected";
+  try {
+    return new URL(PROFILE_LEAD_ENDPOINT).hostname;
+  } catch {
+    return "Connected endpoint";
+  }
+}
+
+function profileLeadPostMode() {
+  const mode = String(PROFILE_LEAD_POST_MODE || "auto").toLowerCase();
+  if (mode === "json" || mode === "no-cors") return mode;
+  try {
+    const host = new URL(PROFILE_LEAD_ENDPOINT).hostname.toLowerCase();
+    if (host.includes("script.google.com") || host.includes("script.googleusercontent.com")) {
+      return "no-cors";
+    }
+  } catch {
+    // Invalid endpoints are handled by profileEmailCaptureEnabled().
+  }
+  return "json";
+}
+
 async function sendProfileLead(payload) {
   try {
+    if (!profileEmailCaptureEnabled()) return;
+
+    const body = JSON.stringify({
+      source: "chinese-tutor",
+      page: window.location.href,
+      ...payload,
+    });
+
+    if (profileLeadPostMode() === "no-cors") {
+      await fetch(PROFILE_LEAD_ENDPOINT, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body,
+        keepalive: true,
+      });
+      return;
+    }
+
     const response = await fetch(PROFILE_LEAD_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source: "chinese-tutor",
-        page: window.location.href,
-        ...payload,
-      }),
+      body,
     });
 
     if (!response.ok) {
@@ -4111,7 +4150,13 @@ function renderRefreshCadenceControls() {
 function renderLeadDirectory() {
   const leads = localLeadRecords();
   if (!leads.length) {
-    return `<p class="small">暂无本机邮箱记录。注意：当前静态网页只能看到这个浏览器里保存过的邮箱；要收集所有访客的邮箱，需要接上后端表单或邮件服务。</p>`;
+    return `
+      <div class="owner-empty-state">
+        <strong>No local emails on this browser yet.</strong>
+        <p class="small">Owner mode can only read profiles saved in this browser until a central signup collector is connected.</p>
+        <p class="small">目前 owner mode 只能看到这个浏览器里保存的账户。要看到所有访客的电邮，需要先接上中央表单或数据库。</p>
+      </div>
+    `;
   }
 
   return `
@@ -4135,22 +4180,49 @@ function renderLeadDirectory() {
   `;
 }
 
+function renderOwnerLeadBackendPanel() {
+  const connected = profileEmailCaptureEnabled();
+  return `
+    <div class="owner-backend-note ${connected ? "connected" : "needed"}">
+      <div class="owner-backend-heading">
+        <strong>${connected ? "All-device signup collection is connected." : "All-device signup collection is not connected yet."}</strong>
+        <span class="status-pill ${connected ? "" : "warn"}">${escapeHtml(profileLeadEndpointSummary())}</span>
+      </div>
+      <p class="small">
+        ${
+          connected
+            ? "New profile signups will also be posted to the configured external collector. This owner page still shows this browser's cached list; use the collector as the full source of truth."
+            : "This app is hosted as a static GitHub Pages site, so it cannot see emails saved on other people's devices by itself. To collect every live-link signup, connect an outside collector, then deploy its URL in PROFILE_LEAD_ENDPOINT."
+        }
+      </p>
+      <div class="owner-backend-steps">
+        <p><strong>To see all accounts:</strong> use Google Sheets + Apps Script, Formspree, Supabase, Airtable, or another form/database service.</p>
+        <p><strong>To send weekly emails:</strong> send from that service, or use Gmail/Apps Script with a weekly trigger at ${WEEKLY_MAILER_SEND_LABEL}.</p>
+        <p><strong>Privacy note:</strong> the owner link is a convenience switch, not real login security. The private master list should live inside the external service account that only you can access.</p>
+      </div>
+    </div>
+  `;
+}
+
 function renderEmailSignupPanel() {
   const leads = localLeadRecords();
   const subscribed = leadEmailList({ subscribedOnly: true });
   const draftUrl = weeklyEmailDraftUrl();
+  const connected = profileEmailCaptureEnabled();
 
   return `
     <section class="panel email-signup-panel">
       <div class="panel-heading-row">
         <h2>电邮名单</h2>
-        <span class="status-pill warn">Owner only · local</span>
+        <span class="status-pill ${connected ? "" : "warn"}">${connected ? "Owner only · collector on" : "Owner only · local cache"}</span>
       </div>
       <div class="stats-grid mini">
-        <div class="stat"><strong>${leads.length}</strong><span>saved emails</span></div>
-        <div class="stat"><strong>${subscribed.length}</strong><span>weekly opt-ins</span></div>
+        <div class="stat"><strong>${leads.length}</strong><span>local emails</span></div>
+        <div class="stat"><strong>${subscribed.length}</strong><span>local weekly opt-ins</span></div>
       </div>
-      <p class="small">这个名单只在 owner mode 显示，并且目前只读取本机浏览器保存的资料。自动周报尚未接上邮件服务；正式发送时间建议设为 ${WEEKLY_MAILER_SEND_LABEL}。</p>
+      <p class="small">This panel shows the local cache saved on this browser. It cannot show every public signup until a central collector is connected and deployed.</p>
+      <p class="small">这里显示的是本机缓存。若要看到网站上所有人的注册邮箱，需要先接上一个中央表单或数据库。</p>
+      ${renderOwnerLeadBackendPanel()}
       <div class="action-row">
         <button class="secondary-button compact" type="button" data-export-leads>导出CSV</button>
         <button class="secondary-button compact" type="button" data-copy-lead-emails>复制邮箱</button>
