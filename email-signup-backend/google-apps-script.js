@@ -1,5 +1,9 @@
 const SHEET_NAME = "Signups";
-const OWNER_TOKEN_PROPERTY = "OWNER_TOKEN";
+
+// Keep this private. Put your real owner token only in your own Apps Script editor.
+// Do not commit your real token to GitHub.
+const OWNER_TOKEN = "PASTE_A_PRIVATE_OWNER_TOKEN_HERE";
+
 const HEADERS = [
   "createdAt",
   "name",
@@ -30,39 +34,40 @@ function doPost(e) {
       refreshCadence: clean_(data.refreshCadence || "weekly", 20),
       source: clean_(data.source || "chinese-tutor", 80),
       page: clean_(data.page, 500),
-      userAgent: clean_(e?.parameter?.userAgent || "", 300),
+      userAgent: clean_(e && e.parameter ? e.parameter.userAgent : "", 300),
       updatedAt: new Date().toISOString(),
     };
 
     upsertSignup_(sheet, row);
     return output_({ ok: true, email });
   } catch (error) {
-    return output_({ ok: false, error: String(error && error.message ? error.message : error) });
+    return output_({ ok: false, error: errorMessage_(error) });
   } finally {
     lock.releaseLock();
   }
 }
 
 function doGet(e) {
-  const callback = cleanCallback_(e?.parameter?.callback);
+  const callback = cleanCallback_(e && e.parameter && e.parameter.callback);
 
   try {
-    if (e?.parameter?.action === "list") {
-      assertOwnerToken_(e?.parameter?.token);
+    const params = (e && e.parameter) || {};
+    if (params.action === "list") {
+      assertOwnerToken_(params.token);
       return output_({ ok: true, leads: listSignups_() }, callback);
     }
 
     return output_({ ok: true, service: "Chinese Tutor email collector" }, callback);
   } catch (error) {
-    return output_({ ok: false, error: String(error && error.message ? error.message : error) }, callback);
+    return output_({ ok: false, error: errorMessage_(error) }, callback);
   }
 }
 
 function parsePostBody_(e) {
-  const raw = e?.postData?.contents || "{}";
+  const raw = e && e.postData && e.postData.contents ? e.postData.contents : "{}";
   try {
     return JSON.parse(raw);
-  } catch {
+  } catch (error) {
     return {};
   }
 }
@@ -111,18 +116,23 @@ function listSignups_() {
 }
 
 function assertOwnerToken_(token) {
-  const expected = PropertiesService.getScriptProperties().getProperty(OWNER_TOKEN_PROPERTY);
-  if (!expected) throw new Error("OWNER_TOKEN script property is missing");
-  if (!token || token !== expected) throw new Error("Invalid owner token");
+  if (!OWNER_TOKEN || OWNER_TOKEN === "PASTE_A_PRIVATE_OWNER_TOKEN_HERE") {
+    throw new Error("OWNER_TOKEN is not set in Apps Script");
+  }
+
+  if (!token || token !== OWNER_TOKEN) {
+    throw new Error("Invalid owner token");
+  }
 }
 
 function output_(payload, callback) {
   const json = JSON.stringify(payload);
   if (callback) {
-    return ContentService.createTextOutput(`${callback}(${json});`).setMimeType(
+    return ContentService.createTextOutput(callback + "(" + json + ");").setMimeType(
       ContentService.MimeType.JAVASCRIPT,
     );
   }
+
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -145,4 +155,8 @@ function clean_(value, maxLength) {
 function cleanCallback_(value) {
   const callback = String(value || "").trim();
   return /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/.test(callback) ? callback : "";
+}
+
+function errorMessage_(error) {
+  return String(error && error.message ? error.message : error);
 }
