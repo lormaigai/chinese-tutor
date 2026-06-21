@@ -116,7 +116,11 @@ function listSignups_() {
 }
 
 function assertOwnerToken_(token) {
-  if (!OWNER_TOKEN || OWNER_TOKEN === "PASTE_A_PRIVATE_OWNER_TOKEN_HERE") {
+  if (
+    !OWNER_TOKEN ||
+    OWNER_TOKEN === "PASTE_A_PRIVATE_OWNER_TOKEN_HERE" ||
+    OWNER_TOKEN === "CHANGE_ME_TO_A_PRIVATE_TOKEN"
+  ) {
     throw new Error("OWNER_TOKEN is not set in Apps Script");
   }
 

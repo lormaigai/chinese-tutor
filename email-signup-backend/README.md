@@ -34,3 +34,17 @@ https://lormaigai.github.io/chinese-tutor/?owner=1
 ```
 
 Then paste the `OWNER_TOKEN` into the owner email panel and click `Load central list`.
+
+## Troubleshooting Owner Token Errors
+
+If owner mode says `OWNER_TOKEN is not set in Apps Script`, the live web app deployment is still running a version where `OWNER_TOKEN` is blank or still set to a placeholder.
+
+1. In Apps Script, open `Code.gs`.
+2. Confirm `OWNER_TOKEN` is a private value you invented, not `OWNER_TOKEN`, `CHANGE_ME_TO_A_PRIVATE_TOKEN`, or `PASTE_A_PRIVATE_OWNER_TOKEN_HERE`.
+3. Click `Save`.
+4. Open `Deploy > Manage deployments`.
+5. Edit the existing web app deployment.
+6. Set `Version` to `New version`.
+7. Click `Deploy`.
+
+The owner panel needs the token value between the quotes. Never use your Google password.
