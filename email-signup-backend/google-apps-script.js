@@ -22,24 +22,8 @@ function doPost(e) {
 
   try {
     const data = parsePostBody_(e);
-    const email = normaliseEmail_(data.email);
-    if (!email) return output_({ ok: false, error: "Invalid email" });
-
-    const sheet = getSignupSheet_();
-    const row = {
-      createdAt: data.createdAt || new Date().toISOString(),
-      name: clean_(data.name || data.displayName, 80),
-      email,
-      wantsUpdates: normaliseBoolean_(data.wantsUpdates),
-      refreshCadence: clean_(data.refreshCadence || "weekly", 20),
-      source: clean_(data.source || "chinese-tutor", 80),
-      page: clean_(data.page, 500),
-      userAgent: clean_(e && e.parameter ? e.parameter.userAgent : "", 300),
-      updatedAt: new Date().toISOString(),
-    };
-
-    upsertSignup_(sheet, row);
-    return output_({ ok: true, email });
+    const row = saveSignup_(data, e);
+    return output_({ ok: true, email: row.email });
   } catch (error) {
     return output_({ ok: false, error: errorMessage_(error) });
   } finally {
@@ -52,6 +36,11 @@ function doGet(e) {
 
   try {
     const params = (e && e.parameter) || {};
+    if (params.action === "signup") {
+      const row = saveSignup_(params, e);
+      return output_({ ok: true, email: row.email }, callback);
+    }
+
     if (params.action === "list") {
       assertOwnerToken_(params.token);
       return output_({ ok: true, leads: listSignups_() }, callback);
@@ -70,6 +59,27 @@ function parsePostBody_(e) {
   } catch (error) {
     return {};
   }
+}
+
+function saveSignup_(data, e) {
+  const email = normaliseEmail_(data.email);
+  if (!email) throw new Error("Invalid email");
+
+  const sheet = getSignupSheet_();
+  const row = {
+    createdAt: data.createdAt || new Date().toISOString(),
+    name: clean_(data.name || data.displayName, 80),
+    email,
+    wantsUpdates: normaliseBoolean_(data.wantsUpdates),
+    refreshCadence: clean_(data.refreshCadence || "weekly", 20),
+    source: clean_(data.source || "chinese-tutor", 80),
+    page: clean_(data.page, 500),
+    userAgent: clean_(data.userAgent || (e && e.parameter ? e.parameter.userAgent : ""), 300),
+    updatedAt: new Date().toISOString(),
+  };
+
+  upsertSignup_(sheet, row);
+  return row;
 }
 
 function getSignupSheet_() {

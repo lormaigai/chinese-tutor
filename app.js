@@ -2623,16 +2623,72 @@ function profileLeadEndpointSummary() {
 
 function profileLeadPostMode() {
   const mode = String(PROFILE_LEAD_POST_MODE || "auto").toLowerCase();
-  if (mode === "json" || mode === "no-cors") return mode;
+  if (mode === "json" || mode === "no-cors" || mode === "jsonp") return mode;
   try {
     const host = new URL(PROFILE_LEAD_ENDPOINT).hostname.toLowerCase();
     if (host.includes("script.google.com") || host.includes("script.googleusercontent.com")) {
-      return "no-cors";
+      return "jsonp";
     }
   } catch {
     // Invalid endpoints are handled by profileEmailCaptureEnabled().
   }
   return "json";
+}
+
+function sendProfileLeadJsonp(endpoint, payload) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `__chineseTutorSignupCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    let script = null;
+    let timeoutId = null;
+
+    function cleanup() {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      if (script?.parentNode) script.parentNode.removeChild(script);
+      try {
+        delete window[callbackName];
+      } catch {
+        window[callbackName] = undefined;
+      }
+    }
+
+    try {
+      const url = new URL(endpoint);
+      url.searchParams.set("action", "signup");
+      url.searchParams.set("callback", callbackName);
+      url.searchParams.set("userAgent", window.navigator?.userAgent || "");
+
+      for (const [key, value] of Object.entries(payload)) {
+        url.searchParams.set(key, String(value ?? ""));
+      }
+
+      window[callbackName] = (response) => {
+        cleanup();
+        if (!response || response.ok === false) {
+          reject(new Error(response?.error || "Signup collector rejected the profile"));
+          return;
+        }
+        resolve(response);
+      };
+
+      script = document.createElement("script");
+      script.src = url.toString();
+      script.async = true;
+      script.onerror = () => {
+        cleanup();
+        reject(new Error("Unable to reach signup collector"));
+      };
+
+      timeoutId = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("Signup collector timed out"));
+      }, 12000);
+
+      document.body.appendChild(script);
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
+  });
 }
 
 async function sendProfileLead(payload) {
@@ -2645,7 +2701,17 @@ async function sendProfileLead(payload) {
       ...payload,
     });
 
-    if (profileLeadPostMode() === "no-cors") {
+    const mode = profileLeadPostMode();
+    if (mode === "jsonp") {
+      await sendProfileLeadJsonp(PROFILE_LEAD_ENDPOINT, {
+        source: "chinese-tutor",
+        page: window.location.href,
+        ...payload,
+      });
+      return;
+    }
+
+    if (mode === "no-cors") {
       await fetch(PROFILE_LEAD_ENDPOINT, {
         method: "POST",
         mode: "no-cors",
