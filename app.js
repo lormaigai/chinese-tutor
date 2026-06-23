@@ -12,6 +12,7 @@ const LOCAL_LEAD_HISTORY_LIMIT = 2000;
 const ANON_VISITOR_STORAGE_KEY = "chinese-tutor-anon-visits-v1";
 const OWNER_TOOLS_STORAGE_KEY = "chinese-tutor-owner-tools-v1";
 const OWNER_LEAD_TOKEN_STORAGE_KEY = "chinese-tutor-owner-lead-token-v1";
+const LEAD_SYNC_STATUS_STORAGE_KEY = "chinese-tutor-lead-sync-status-v1";
 const DAILY_ARTICLE_ID = "daily-recent";
 const PINYIN_ENGINE_URL = "https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.1/+esm";
 const PINYIN_CACHE_LIMIT = 250;
@@ -1538,6 +1539,7 @@ let centralLeadState = {
   error: "",
   checkedAt: null,
 };
+let profileLeadSyncState = loadProfileLeadSyncState();
 stateReady = true;
 let timerId = null;
 let deferredInstallPrompt = null;
@@ -2412,6 +2414,40 @@ function safeParseState() {
   }
 }
 
+function loadProfileLeadSyncState() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LEAD_SYNC_STATUS_STORAGE_KEY) || "{}");
+    return {
+      status: ["idle", "syncing", "synced", "fallback", "error"].includes(raw.status) ? raw.status : "idle",
+      email: sanitizeEmail(raw.email),
+      message: sanitizeText(raw.message, 200),
+      checkedAt: sanitizeTimestamp(raw.checkedAt),
+    };
+  } catch {
+    return {
+      status: "idle",
+      email: "",
+      message: "",
+      checkedAt: null,
+    };
+  }
+}
+
+function setProfileLeadSyncState(next) {
+  profileLeadSyncState = {
+    ...profileLeadSyncState,
+    ...next,
+    message: sanitizeText(next.message, 200),
+    checkedAt: next.checkedAt || Date.now(),
+  };
+
+  try {
+    localStorage.setItem(LEAD_SYNC_STATUS_STORAGE_KEY, JSON.stringify(profileLeadSyncState));
+  } catch {
+    // Ignore private-mode storage failures.
+  }
+}
+
 function singaporeDateKey(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Singapore",
@@ -2534,7 +2570,7 @@ function nextArticle() {
   showToast(`已切换：${next.topicLabel}`);
 }
 
-function saveProfileFromForm(form) {
+async function saveProfileFromForm(form) {
   syncProfileDraftFromForm(form);
   const email = sanitizeEmail(form?.querySelector("[data-profile-email]")?.value);
   const displayName = sanitizeText(form?.querySelector("[data-profile-name]")?.value, 80);
@@ -2575,13 +2611,40 @@ function saveProfileFromForm(form) {
   seedProfileDraft();
 
   if (PROFILE_LEAD_ENDPOINT && profileEmailCaptureEnabled()) {
-    sendProfileLead({
-      name: displayName,
+    setProfileLeadSyncState({
+      status: "syncing",
       email,
-      wantsUpdates,
-      refreshCadence: parseRefreshCadence(state.profile?.refreshCadence),
-      createdAt: new Date(state.profile?.createdAt || Date.now()).toISOString(),
-    }).catch(() => {});
+      message: "Sending profile to central list",
+    });
+    render();
+
+    try {
+      const result = await sendProfileLead({
+        name: displayName,
+        email,
+        wantsUpdates,
+        refreshCadence: parseRefreshCadence(state.profile?.refreshCadence),
+        createdAt: new Date(state.profile?.createdAt || Date.now()).toISOString(),
+      });
+      setProfileLeadSyncState({
+        status: result?.fallback ? "fallback" : "synced",
+        email,
+        message: result?.fallback ? "Sent with mobile fallback" : "Saved to central list",
+      });
+    } catch (error) {
+      setProfileLeadSyncState({
+        status: "error",
+        email,
+        message: errorMessage(error),
+      });
+      showToast("账户已保存；中央同步失败");
+    }
+  } else {
+    setProfileLeadSyncState({
+      status: "idle",
+      email,
+      message: "Central collector not connected",
+    });
   }
 
   if (pendingSaveId) {
@@ -2605,7 +2668,100 @@ function saveProfileFromForm(form) {
   }
 
   render();
-  showToast("免费账户已保存");
+  showToast(
+    profileLeadSyncState.status === "synced" || profileLeadSyncState.status === "fallback"
+      ? "免费账户已保存，并已同步中央名单"
+      : "免费账户已保存",
+  );
+}
+
+function profileLeadSyncLabel() {
+  if (!profileEmailCaptureEnabled()) return "Central list not connected";
+  if (profileLeadSyncState.status === "syncing") return "Syncing to central list...";
+  if (profileLeadSyncState.status === "synced") return `Synced to central list: ${profileLeadSyncState.email}`;
+  if (profileLeadSyncState.status === "fallback") return `Sent with mobile fallback: ${profileLeadSyncState.email}`;
+  if (profileLeadSyncState.status === "error") return `Central sync failed: ${profileLeadSyncState.message}`;
+  return "Central list ready";
+}
+
+function profileLeadSyncClass() {
+  if (profileLeadSyncState.status === "error") return "warn";
+  if (profileLeadSyncState.status === "syncing") return "warn";
+  return "";
+}
+
+function sendProfileLeadByForm(endpoint, payload) {
+  return new Promise((resolve, reject) => {
+    let iframe = null;
+    let form = null;
+    let timeoutId = null;
+    const frameName = `chineseTutorLeadFrame_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    function cleanup() {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      window.setTimeout(() => {
+        if (form?.parentNode) form.parentNode.removeChild(form);
+        if (iframe?.parentNode) iframe.parentNode.removeChild(iframe);
+      }, 1000);
+    }
+
+    try {
+      iframe = document.createElement("iframe");
+      iframe.name = frameName;
+      iframe.hidden = true;
+
+      form = document.createElement("form");
+      form.action = endpoint;
+      form.method = "GET";
+      form.target = frameName;
+      form.hidden = true;
+
+      const values = {
+        action: "signup",
+        source: "chinese-tutor",
+        page: window.location.href,
+        userAgent: window.navigator?.userAgent || "",
+        ...payload,
+      };
+
+      Object.entries(values).forEach(([key, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = String(value ?? "");
+        form.appendChild(input);
+      });
+
+      iframe.addEventListener("load", () => {
+        cleanup();
+        resolve({ ok: true, fallback: true });
+      });
+
+      timeoutId = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("Mobile fallback timed out"));
+      }, 12000);
+
+      document.body.append(iframe, form);
+      form.submit();
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
+  });
+}
+
+async function syncProfileLead(payload) {
+  try {
+    return await sendProfileLeadJsonp(PROFILE_LEAD_ENDPOINT, payload);
+  } catch (error) {
+    console.warn("JSONP signup failed, trying mobile fallback", error);
+    return sendProfileLeadByForm(PROFILE_LEAD_ENDPOINT, payload);
+  }
+}
+
+function errorMessage(error) {
+  return String(error && error.message ? error.message : error);
 }
 
 function profileEmailCaptureEnabled() {
@@ -2703,12 +2859,11 @@ async function sendProfileLead(payload) {
 
     const mode = profileLeadPostMode();
     if (mode === "jsonp") {
-      await sendProfileLeadJsonp(PROFILE_LEAD_ENDPOINT, {
+      return await syncProfileLead({
         source: "chinese-tutor",
         page: window.location.href,
         ...payload,
       });
-      return;
     }
 
     if (mode === "no-cors") {
@@ -4370,6 +4525,9 @@ function renderProfileForm({ modal = false } = {}) {
         <span>Email me the vocabulary I learned each week. / 每周把我学过的词汇电邮给我。</span>
       </label>
       <p class="privacy-note">By default, the word bank stays in this browser. / 默认词句本保存在本机浏览器。</p>
+      <p class="privacy-note">
+        Central email list: <span class="status-pill ${profileLeadSyncClass()}">${escapeHtml(profileLeadSyncLabel())}</span>
+      </p>
       <div class="action-row">
         <button class="primary-button" type="submit" data-create-profile>${buttonLabel}</button>
         ${modal ? `<button class="secondary-button" type="button" data-close-signup>稍后 Later</button>` : ""}
