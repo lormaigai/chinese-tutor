@@ -1939,6 +1939,19 @@ function ownerLeadEndpoint() {
   return isHttpEndpoint(OWNER_LEAD_ENDPOINT) ? OWNER_LEAD_ENDPOINT : PROFILE_LEAD_ENDPOINT;
 }
 
+function ownerLeadEndpointLabel() {
+  const endpoint = ownerLeadEndpoint();
+  if (!isHttpEndpoint(endpoint)) return "not connected";
+
+  try {
+    const url = new URL(endpoint);
+    const deploymentId = url.pathname.split("/").filter(Boolean)[2] || "";
+    return deploymentId ? `${url.hostname} / ${deploymentId.slice(0, 10)}...${deploymentId.slice(-6)}` : url.hostname;
+  } catch {
+    return "connected endpoint";
+  }
+}
+
 function ownerCentralCollectionEnabled() {
   return isHttpEndpoint(ownerLeadEndpoint());
 }
@@ -1975,6 +1988,23 @@ function centralLeadStatusLabel() {
   if (centralLeadState.status === "loaded") return `${centralLeadState.leads.length} central emails loaded`;
   if (centralLeadState.status === "error") return "central load failed";
   return ownerLeadToken() ? "ready to load central list" : "admin token needed";
+}
+
+async function refreshOwnerAppFiles() {
+  setOwnerLeadToken("");
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key.startsWith("chinese-tutor-")).map((key) => caches.delete(key)));
+    }
+    if (navigator.serviceWorker) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+  } catch {
+    // A normal reload still helps when cache APIs are unavailable.
+  }
+  window.location.reload();
 }
 
 function fetchCentralLeadsJsonp(endpoint, token) {
@@ -4359,6 +4389,7 @@ function renderOwnerLeadBackendPanel() {
             : "This app is hosted as a static GitHub Pages site, so it cannot see emails saved on other people's devices by itself. To collect every live-link signup, connect an outside collector, then deploy its URL in profile-lead-config.js."
         }
       </p>
+      <p class="small">Collector: <code>${escapeHtml(ownerLeadEndpointLabel())}</code></p>
       ${
         connected
           ? `
@@ -4370,11 +4401,16 @@ function renderOwnerLeadBackendPanel() {
               <div class="action-row">
                 <button class="secondary-button compact" type="submit">Load central list</button>
                 <button class="secondary-button compact" type="button" data-clear-owner-token ${hasToken ? "" : "disabled"}>Clear token</button>
+                <button class="secondary-button compact" type="button" data-refresh-owner-app>Refresh app files</button>
               </div>
             </form>
             ${
               centralLeadState.error
-                ? `<p class="small error-text">${escapeHtml(centralLeadState.error)}</p>`
+                ? `<p class="small error-text">${escapeHtml(centralLeadState.error)}${
+                    centralLeadState.error.includes("OWNER_TOKEN is not set")
+                      ? " — this usually means this tab is using an old Apps Script deployment. Click Refresh app files, then paste the new owner token again."
+                      : ""
+                  }</p>`
                 : centralLeadState.checkedAt
                   ? `<p class="small">Last central check: ${formatLeadTime(centralLeadState.checkedAt)}</p>`
                   : ""
@@ -4790,6 +4826,11 @@ document.addEventListener("click", async (event) => {
     };
     render();
     showToast("owner token 已清除");
+    return;
+  }
+
+  if (target.hasAttribute("data-refresh-owner-app")) {
+    await refreshOwnerAppFiles();
     return;
   }
 
