@@ -8,4 +8,7 @@ window.CHINESE_TUTOR_CONFIG = {
 
   // Optional: leave blank to reuse profileLeadEndpoint for owner list loading.
   ownerLeadEndpoint: "",
+
+  // Optional: leave blank to reuse profileLeadEndpoint for anonymous traffic analytics.
+  anonymousVisitorEndpoint: "",
 };

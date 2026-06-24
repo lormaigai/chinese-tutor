@@ -929,6 +929,54 @@ h3 {
   margin: 10px 0;
 }
 
+.traffic-chart {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(28px, 1fr));
+  align-items: end;
+  gap: 8px;
+  min-height: 144px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fffefa;
+}
+
+.traffic-bar-wrap {
+  display: grid;
+  justify-items: center;
+  align-items: end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.traffic-bar {
+  width: 100%;
+  max-width: 28px;
+  min-height: 8px;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, #74a67a, #315f44);
+}
+
+.traffic-bar-wrap span {
+  font-size: 0.68rem;
+  color: var(--muted);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.traffic-pages {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fffefa;
+}
+
+.traffic-pages p {
+  margin: 6px 0 0;
+}
+
 .lead-list {
   display: grid;
   gap: 8px;

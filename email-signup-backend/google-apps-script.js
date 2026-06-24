@@ -1,4 +1,5 @@
 const SHEET_NAME = "Signups";
+const VISIT_EVENTS_SHEET_NAME = "VisitEvents";
 
 // Keep this private. Put your real owner token only in your own Apps Script editor.
 // Do not commit your real token to GitHub.
@@ -14,6 +15,14 @@ const HEADERS = [
   "page",
   "userAgent",
   "updatedAt",
+];
+const VISIT_EVENT_HEADERS = [
+  "eventAt",
+  "visitDate",
+  "visitorId",
+  "page",
+  "referrer",
+  "userAgent",
 ];
 
 function doPost(e) {
@@ -39,6 +48,16 @@ function doGet(e) {
     if (params.action === "signup") {
       const row = saveSignup_(params, e);
       return output_({ ok: true, email: row.email }, callback);
+    }
+
+    if (params.action === "visit") {
+      const event = saveVisitEvent_(params, e);
+      return output_({ ok: true, visitDate: event.visitDate }, callback);
+    }
+
+    if (params.action === "traffic") {
+      assertOwnerToken_(params.token);
+      return output_({ ok: true, traffic: listTraffic_(params.days) }, callback);
     }
 
     if (params.action === "list") {
@@ -82,12 +101,40 @@ function saveSignup_(data, e) {
   return row;
 }
 
+function saveVisitEvent_(data, e) {
+  const now = new Date();
+  const event = {
+    eventAt: now.toISOString(),
+    visitDate: cleanDate_(data.visitDate) || Utilities.formatDate(now, "Asia/Singapore", "yyyy-MM-dd"),
+    visitorId: clean_(data.visitorId, 80) || "anonymous",
+    page: clean_(data.page, 500),
+    referrer: clean_(data.referrer, 500),
+    userAgent: clean_(data.userAgent || (e && e.parameter ? e.parameter.userAgent : ""), 300),
+  };
+
+  const sheet = getVisitEventsSheet_();
+  sheet.appendRow(VISIT_EVENT_HEADERS.map((header) => event[header] || ""));
+  return event;
+}
+
 function getSignupSheet_() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.insertSheet(SHEET_NAME);
 
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
+    sheet.setFrozenRows(1);
+  }
+
+  return sheet;
+}
+
+function getVisitEventsSheet_() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(VISIT_EVENTS_SHEET_NAME) || spreadsheet.insertSheet(VISIT_EVENTS_SHEET_NAME);
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(VISIT_EVENT_HEADERS);
     sheet.setFrozenRows(1);
   }
 
@@ -123,6 +170,58 @@ function listSignups_() {
     source: row[5] || "central-collector",
     page: row[6] || "",
   }));
+}
+
+function listTraffic_(days) {
+  const maxDays = Math.max(1, Math.min(Number(days) || 30, 90));
+  const sheet = getVisitEventsSheet_();
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return [];
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - maxDays + 1);
+  cutoff.setHours(0, 0, 0, 0);
+
+  const daily = {};
+
+  values.slice(1).forEach((row) => {
+    const visitDate = cleanDate_(row[1]);
+    if (!visitDate) return;
+
+    const date = new Date(visitDate + "T00:00:00");
+    if (date < cutoff) return;
+
+    if (!daily[visitDate]) {
+      daily[visitDate] = {
+        date: visitDate,
+        visits: 0,
+        visitors: {},
+        pages: {},
+      };
+    }
+
+    const bucket = daily[visitDate];
+    const visitorId = clean_(row[2], 80) || "anonymous";
+    const page = clean_(row[3] || "/", 200) || "/";
+    bucket.visits += 1;
+    bucket.visitors[visitorId] = true;
+    bucket.pages[page] = (bucket.pages[page] || 0) + 1;
+  });
+
+  return Object.keys(daily)
+    .sort()
+    .map((date) => {
+      const bucket = daily[date];
+      return {
+        date,
+        visits: bucket.visits,
+        uniqueVisitors: Object.keys(bucket.visitors).length,
+        topPages: Object.keys(bucket.pages)
+          .sort((a, b) => bucket.pages[b] - bucket.pages[a])
+          .slice(0, 5)
+          .map((page) => ({ page, visits: bucket.pages[page] })),
+      };
+    });
 }
 
 function assertOwnerToken_(token) {
@@ -164,6 +263,11 @@ function clean_(value, maxLength) {
     .replace(/[\u0000-\u001f\u007f]/g, " ")
     .trim()
     .slice(0, maxLength);
+}
+
+function cleanDate_(value) {
+  const date = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
 }
 
 function cleanCallback_(value) {

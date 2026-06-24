@@ -7,9 +7,10 @@ const APP_CONFIG = typeof window === "undefined" ? {} : window.CHINESE_TUTOR_CON
 const PROFILE_LEAD_ENDPOINT = String(APP_CONFIG.profileLeadEndpoint || "").trim();
 const PROFILE_LEAD_POST_MODE = String(APP_CONFIG.profileLeadPostMode || "auto").trim();
 const OWNER_LEAD_ENDPOINT = String(APP_CONFIG.ownerLeadEndpoint || PROFILE_LEAD_ENDPOINT).trim();
-const ANONYMOUS_VISITOR_ENDPOINT = "";
+const ANONYMOUS_VISITOR_ENDPOINT = String(APP_CONFIG.anonymousVisitorEndpoint || PROFILE_LEAD_ENDPOINT).trim();
 const LOCAL_LEAD_HISTORY_LIMIT = 2000;
 const ANON_VISITOR_STORAGE_KEY = "chinese-tutor-anon-visits-v1";
+const ANON_VISITOR_ID_STORAGE_KEY = "chinese-tutor-anon-visitor-id-v1";
 const OWNER_TOOLS_STORAGE_KEY = "chinese-tutor-owner-tools-v1";
 const OWNER_LEAD_TOKEN_STORAGE_KEY = "chinese-tutor-owner-lead-token-v1";
 const LEAD_SYNC_STATUS_STORAGE_KEY = "chinese-tutor-lead-sync-status-v1";
@@ -1539,6 +1540,12 @@ let centralLeadState = {
   error: "",
   checkedAt: null,
 };
+let trafficState = {
+  status: "idle",
+  days: [],
+  error: "",
+  checkedAt: null,
+};
 let profileLeadSyncState = loadProfileLeadSyncState();
 stateReady = true;
 let timerId = null;
@@ -1761,6 +1768,19 @@ function getAnonymousVisitStats() {
   }
 }
 
+function anonymousVisitorId() {
+  try {
+    const existing = localStorage.getItem(ANON_VISITOR_ID_STORAGE_KEY);
+    if (existing && SAFE_ID.test(existing)) return existing;
+
+    const generated = `visitor-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(ANON_VISITOR_ID_STORAGE_KEY, generated);
+    return generated;
+  } catch {
+    return `session-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
 function trackAnonymousVisit() {
   try {
     const today = singaporeDateKey();
@@ -1780,7 +1800,10 @@ function trackAnonymousVisit() {
       sendAnonymousVisit({
         event: "app_visit",
         path: window.location.pathname,
-        time: new Date().toISOString(),
+        page: `${window.location.pathname}${window.location.search || ""}`,
+        referrer: document.referrer || "",
+        visitorId: anonymousVisitorId(),
+        userAgent: window.navigator?.userAgent || "",
         visitDate: today,
       }).catch(() => {});
     }
@@ -1789,18 +1812,66 @@ function trackAnonymousVisit() {
   }
 }
 
-async function sendAnonymousVisit(payload) {
+function sendAnonymousVisit(payload) {
   if (!isHttpEndpoint(ANONYMOUS_VISITOR_ENDPOINT)) return;
 
-  const response = await fetch(ANONYMOUS_VISITOR_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+  return sendJsonpRequest(ANONYMOUS_VISITOR_ENDPOINT, {
+    action: "visit",
+    ...payload,
   });
+}
 
-  if (!response.ok) {
-    throw new Error(`anonymous visitor endpoint responded ${response.status}`);
-  }
+function sendJsonpRequest(endpoint, params, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `__chineseTutorCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    let script = null;
+    let timeoutId = null;
+
+    function cleanup() {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      if (script?.parentNode) script.parentNode.removeChild(script);
+      try {
+        delete window[callbackName];
+      } catch {
+        window[callbackName] = undefined;
+      }
+    }
+
+    try {
+      const url = new URL(endpoint);
+      url.searchParams.set("callback", callbackName);
+      Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.set(key, String(value ?? ""));
+      });
+
+      window[callbackName] = (response) => {
+        cleanup();
+        if (!response || response.ok === false) {
+          reject(new Error(response?.error || "Request rejected"));
+          return;
+        }
+        resolve(response);
+      };
+
+      script = document.createElement("script");
+      script.src = url.toString();
+      script.async = true;
+      script.onerror = () => {
+        cleanup();
+        reject(new Error("Unable to reach endpoint"));
+      };
+
+      timeoutId = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("Request timed out"));
+      }, timeoutMs);
+
+      document.body.appendChild(script);
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
+  });
 }
 
 function parseCompletedDates(raw) {
@@ -2116,6 +2187,82 @@ async function loadCentralLeadRecords({ token } = {}) {
     render();
     showToast("中央名单读取失败，请检查 endpoint 和 token");
   }
+}
+
+async function loadTrafficRecords({ token } = {}) {
+  const endpoint = ownerLeadEndpoint();
+  if (!isHttpEndpoint(endpoint)) {
+    showToast("还没接上流量统计收集器");
+    return;
+  }
+
+  const safeToken = token ? setOwnerLeadToken(token) : ownerLeadToken();
+  if (!safeToken) {
+    showToast("请输入 owner admin token 才能读取流量统计");
+    render();
+    return;
+  }
+
+  trafficState = {
+    ...trafficState,
+    status: "loading",
+    error: "",
+  };
+  render();
+
+  try {
+    const payload = await sendJsonpRequest(endpoint, {
+      action: "traffic",
+      token: safeToken,
+      days: 30,
+    });
+    const days = Array.isArray(payload.traffic) ? payload.traffic.map(normalizeTrafficDay).filter(Boolean) : [];
+    trafficState = {
+      status: "loaded",
+      days,
+      error: "",
+      checkedAt: Date.now(),
+    };
+    render();
+    showToast(`已载入 ${days.length} 天流量`);
+  } catch (error) {
+    trafficState = {
+      ...trafficState,
+      status: "error",
+      error: errorMessage(error),
+      checkedAt: Date.now(),
+    };
+    render();
+    showToast("流量统计读取失败，请检查 endpoint 和 token");
+  }
+}
+
+function normalizeTrafficDay(raw) {
+  if (!isRecord(raw)) return null;
+  const date = sanitizeDateString(raw.date);
+  if (!date) return null;
+  const visits = clampInt(raw.visits, 0, 1000000, 0);
+  const uniqueVisitors = clampInt(raw.uniqueVisitors, 0, 1000000, 0);
+  const topPages = Array.isArray(raw.topPages)
+    ? raw.topPages
+        .map((page) => ({
+          page: sanitizeText(page?.page || "/", 160),
+          visits: clampInt(page?.visits, 0, 1000000, 0),
+        }))
+        .filter((page) => page.visits > 0)
+    : [];
+
+  return { date, visits, uniqueVisitors, topPages };
+}
+
+function trafficTotals() {
+  return trafficState.days.reduce(
+    (total, day) => ({
+      visits: total.visits + day.visits,
+      uniqueVisitors: total.uniqueVisitors + day.uniqueVisitors,
+    }),
+    { visits: 0, uniqueVisitors: 0 },
+  );
 }
 
 function activateOwnerToolsFromUrl() {
@@ -4750,6 +4897,88 @@ function renderEmailSignupPanel() {
   `;
 }
 
+function renderTrafficPanel() {
+  const totals = trafficTotals();
+  const days = trafficState.days.slice(-30);
+  const maxVisits = Math.max(1, ...days.map((day) => day.visits));
+  const latest = days[days.length - 1] || null;
+  const topPages = days
+    .flatMap((day) => day.topPages || [])
+    .reduce((map, item) => {
+      map[item.page] = (map[item.page] || 0) + item.visits;
+      return map;
+    }, {});
+  const rankedPages = Object.entries(topPages)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  return `
+    <section class="panel traffic-panel">
+      <div class="panel-heading-row">
+        <h2>网站流量</h2>
+        <span class="status-pill ${trafficState.status === "error" ? "warn" : ""}">
+          ${
+            trafficState.status === "loading"
+              ? "loading"
+              : trafficState.status === "loaded"
+                ? "30-day traffic loaded"
+                : trafficState.status === "error"
+                  ? "traffic load failed"
+                  : "owner only"
+          }
+        </span>
+      </div>
+      <div class="stats-grid mini">
+        <div class="stat"><strong>${totals.visits}</strong><span>visits loaded</span></div>
+        <div class="stat"><strong>${totals.uniqueVisitors}</strong><span>daily unique sum</span></div>
+        <div class="stat"><strong>${latest ? latest.visits : 0}</strong><span>latest day visits</span></div>
+        <div class="stat"><strong>${days.length}</strong><span>days shown</span></div>
+      </div>
+      <div class="action-row">
+        <button class="secondary-button compact" type="button" data-load-traffic>Load traffic</button>
+      </div>
+      ${
+        trafficState.error
+          ? `<p class="small error-text">${escapeHtml(trafficState.error)}</p>`
+          : trafficState.checkedAt
+            ? `<p class="small">Last traffic check: ${formatLeadTime(trafficState.checkedAt)}</p>`
+            : `<p class="small">Anonymous visits are counted once the live app loads. No email, name, or password is stored for traffic analytics.</p>`
+      }
+      ${
+        days.length
+          ? `
+            <div class="traffic-chart" aria-label="Daily website visits">
+              ${days
+                .map((day) => {
+                  const height = Math.max(8, Math.round((day.visits / maxVisits) * 96));
+                  return `
+                    <div class="traffic-bar-wrap">
+                      <div class="traffic-bar" style="height: ${height}px" title="${escapeHtml(day.date)}: ${day.visits} visits"></div>
+                      <span>${escapeHtml(day.date.slice(5))}</span>
+                    </div>
+                  `;
+                })
+                .join("")}
+            </div>
+            ${
+              rankedPages.length
+                ? `
+                  <div class="traffic-pages">
+                    <strong>Top pages</strong>
+                    ${rankedPages
+                      .map(([page, visits]) => `<p class="small">${escapeHtml(page)} · ${visits} visits</p>`)
+                      .join("")}
+                  </div>
+                `
+                : ""
+            }
+          `
+          : `<div class="owner-empty-state"><strong>No central traffic loaded yet.</strong><p class="small">Click Load traffic after a few public visits have happened.</p></div>`
+      }
+    </section>
+  `;
+}
+
 function renderTopicInventory() {
   return topics
     .filter((topic) => topic.id !== "all")
@@ -4789,7 +5018,7 @@ function renderProfile() {
       }
     </section>
 
-    ${ownerToolsEnabled() ? renderEmailSignupPanel() : ""}
+    ${ownerToolsEnabled() ? `${renderTrafficPanel()}${renderEmailSignupPanel()}` : ""}
 
     <section class="panel">
       <h2>新闻更新节奏</h2>
@@ -5095,6 +5324,11 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  if (target.hasAttribute("data-load-traffic")) {
+    await loadTrafficRecords();
+    return;
+  }
+
   if (target.hasAttribute("data-open-weekly-draft")) {
     await openWeeklyEmailDraft();
     return;
@@ -5275,6 +5509,7 @@ document.addEventListener("submit", (event) => {
     event.preventDefault();
     const token = tokenForm.querySelector("[data-owner-lead-token]")?.value || "";
     loadCentralLeadRecords({ token });
+    loadTrafficRecords({ token });
     return;
   }
 

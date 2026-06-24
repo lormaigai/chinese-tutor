@@ -1,6 +1,6 @@
 # Email Signup Backend
 
-Use this when you want the live GitHub Pages app to collect signups from every visitor into one private master list.
+Use this when you want the live GitHub Pages app to collect signups from every visitor into one private master list and show owner-only traffic analytics.
 
 ## Google Sheets + Apps Script Setup
 
@@ -21,7 +21,9 @@ Use this when you want the live GitHub Pages app to collect signups from every v
 ## How It Works
 
 - Public visitors can create a profile and send their name/email into the sheet.
+- Public visits are counted anonymously in a separate `VisitEvents` sheet.
 - The owner page uses your private `OWNER_TOKEN` to load the full central list.
+- The same owner token loads the private traffic chart in owner mode.
 - The token is not committed into this repo. You paste it into owner mode on your own browser.
 - Old signups made before this backend is connected cannot be recovered from other browsers/devices.
 
@@ -34,6 +36,8 @@ https://lormaigai.github.io/chinese-tutor/?owner=1
 ```
 
 Then paste the `OWNER_TOKEN` into the owner email panel and click `Load central list`.
+
+Owner mode also includes a `网站流量` panel. Click `Load traffic` to see the latest 30 days of anonymous visits.
 
 ## Troubleshooting Owner Token Errors
 
