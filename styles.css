@@ -218,6 +218,15 @@ h3 {
   padding: 14px;
 }
 
+.compact-status-panel {
+  box-shadow: none;
+}
+
+.compact-status-panel p {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
 .source-row,
 .metric-row,
 .action-row,

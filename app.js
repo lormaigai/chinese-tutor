@@ -1813,6 +1813,8 @@ function parsePipeline(raw) {
     status: "fallback",
     message: "Prototype article library ready",
     checkedAt: null,
+    dailyDate: "",
+    dailySourceTitle: "",
   };
   if (!isRecord(raw)) return fallback;
 
@@ -1820,12 +1822,18 @@ function parsePipeline(raw) {
     status: raw.status === "live" ? "live" : "fallback",
     message: sanitizeText(raw.message || fallback.message, 160),
     checkedAt: raw.checkedAt === null ? null : sanitizeTimestamp(raw.checkedAt),
+    dailyDate: sanitizeDateString(raw.dailyDate),
+    dailySourceTitle: sanitizeText(raw.dailySourceTitle, 180),
   };
 }
 
 function parseHeadlines(raw) {
   if (!Array.isArray(raw)) return [];
   return mergeHeadlines(raw.map(normalizeHeadlineRecord).filter(Boolean));
+}
+
+function parseDailyHeadline(raw) {
+  return normalizeHeadlineRecord(raw);
 }
 
 function parseRefreshCadence(value) {
@@ -2358,10 +2366,13 @@ function loadState() {
     timerLeft: 120,
     profile: emptyProfile(),
     headlines: [],
+    dailyHeadline: null,
     pipeline: {
       status: "fallback",
       message: "Prototype article library ready",
       checkedAt: null,
+      dailyDate: "",
+      dailySourceTitle: "",
     },
   };
 
@@ -2394,6 +2405,7 @@ function loadState() {
     timerLeft: clampInt(raw.timerLeft, 0, 600, fallback.timerLeft),
     profile: parseProfile(raw.profile),
     headlines: parseHeadlines(raw.headlines),
+    dailyHeadline: parseDailyHeadline(raw.dailyHeadline),
     pipeline: parsePipeline(raw.pipeline),
   };
 }
@@ -3746,12 +3758,30 @@ function recentHeadlinePool() {
   return live.length ? balanceHeadlineSources(live) : balanceHeadlineSources(builtInRecentHeadlines());
 }
 
-function headlineOfTheDay() {
-  const pool = recentHeadlinePool();
+function pickHeadlineForDate(headlines, dateKey = singaporeDateKey()) {
+  const pool = balanceHeadlineSources(headlines).filter((headline) => isRecentHeadlineDate(headline.sourceDate));
   if (!pool.length) return null;
 
-  const seed = Math.abs(hashText(singaporeDateKey()));
+  const seed = Math.abs(hashText(dateKey));
   return pool[seed % pool.length];
+}
+
+function headlineOfTheDay() {
+  const today = singaporeDateKey();
+  const savedDaily = parseDailyHeadline(state.dailyHeadline);
+  if (savedDaily && state.pipeline.dailyDate === today && isRecentHeadlineDate(savedDaily.sourceDate)) {
+    return savedDaily;
+  }
+
+  return pickHeadlineForDate(recentHeadlinePool(), today);
+}
+
+function shouldScanDailyNews() {
+  const today = singaporeDateKey();
+  if (state.pipeline.dailyDate !== today) return true;
+  if (!state.headlines.length) return true;
+  const checkedAt = sanitizeTimestamp(state.pipeline.checkedAt);
+  return !checkedAt || Date.now() - checkedAt > 6 * 60 * 60 * 1000;
 }
 
 function headlineGroups() {
@@ -3990,6 +4020,22 @@ function renderToday() {
           `,
         )
         .join("")}
+    </section>
+
+    <section class="panel compact-status-panel">
+      <div class="metric-row">
+        <span class="status-pill ${state.pipeline.status === "live" ? "" : "warn"}">${escapeHtml(state.pipeline.message)}</span>
+        ${
+          state.pipeline.dailyDate
+            ? `<span class="chip soft">Daily scan: ${escapeHtml(state.pipeline.dailyDate)}</span>`
+            : ""
+        }
+      </div>
+      ${
+        state.pipeline.dailySourceTitle
+          ? `<p class="small">Today's scanned source: ${escapeHtml(state.pipeline.dailySourceTitle)}</p>`
+          : `<p class="small">The app scans approved news feeds once per Singapore day when it opens, then pins one headline as today's practice article.</p>`
+      }
     </section>
 
     <section class="lesson-hero">
@@ -4748,7 +4794,7 @@ function renderProfile() {
     <section class="panel">
       <h2>新闻更新节奏</h2>
       ${renderRefreshCadenceControls()}
-      <p class="small">正式版可按这个节奏从批准来源为每个主题挑选近期新闻，生成原创练习稿，并在发布前做版权、安全和质量检查。</p>
+      <p class="small">应用会在每天第一次打开时扫描批准新闻源，选出一个近期标题，生成当天的原创中文练习稿。若RSS暂时不可用，就使用内置近期新闻链接作为备用。</p>
     </section>
 
     <section class="panel">
@@ -4778,8 +4824,17 @@ function renderProfile() {
       <h2>内容管线</h2>
       <div class="metric-row">
         <span class="status-pill ${pipeline.status === "live" ? "" : "warn"}">${escapeHtml(pipeline.message)}</span>
+        ${
+          pipeline.dailyDate
+            ? `<span class="chip soft">${escapeHtml(pipeline.dailyDate)}</span>`
+            : ""
+        }
       </div>
-      <p class="small">原型目前内置原创练习篇章，并链接到具体新闻源文；正式版可接入RSS抓取、AI改写和自动安全检查。</p>
+      ${
+        pipeline.dailySourceTitle
+          ? `<p class="small">今日新增：${escapeHtml(pipeline.dailySourceTitle)}</p>`
+          : `<p class="small">每日扫描会在应用打开时运行，并把当天选中的新闻标题固定为今日练习。</p>`
+      }
       <div class="grid">
         ${allowedSources
           .map(
@@ -4951,27 +5006,37 @@ function clearOralRecording() {
 }
 
 async function checkPipelineHealth() {
+  if (!shouldScanDailyNews()) return;
+
   try {
     const headlines = await loadRecentHeadlines();
     state.headlines = headlines;
     if (!headlines.length) throw new Error("No recent headlines available");
 
     const liveCount = headlines.filter((headline) => headline.section !== "Built-in practice source").length;
+    const dailyHeadline = pickHeadlineForDate(headlines);
+    state.dailyHeadline = dailyHeadline;
     state.pipeline = {
       status: liveCount ? "live" : "fallback",
       message: liveCount
-        ? `${headlines.length} recent headlines loaded`
-        : `${headlines.length} recent built-in headline links ready`,
+        ? `Daily scan found ${headlines.length} recent headlines`
+        : `Daily scan used ${headlines.length} built-in headline links`,
       checkedAt: Date.now(),
+      dailyDate: singaporeDateKey(),
+      dailySourceTitle: dailyHeadline?.sourceTitle || "",
     };
   } catch {
     state.headlines = builtInRecentHeadlines();
+    const dailyHeadline = pickHeadlineForDate(state.headlines);
+    state.dailyHeadline = dailyHeadline;
     state.pipeline = {
       status: "fallback",
       message: state.headlines.length
-        ? `${state.headlines.length} recent built-in headline links ready`
+        ? `Daily scan used ${state.headlines.length} built-in headline links`
         : "Using built-in article library",
       checkedAt: Date.now(),
+      dailyDate: singaporeDateKey(),
+      dailySourceTitle: dailyHeadline?.sourceTitle || "",
     };
   } finally {
     persist();
